@@ -30,7 +30,12 @@ class TestSemiAutoParallelMoEUtils(test_base.CommunicationTestDistBase):
 
     def test_moe_utils(self):
         envs_list = test_base.gen_product_envs_list(
-            {"dtype": "float32", "seed": "2024"}, {"backend": ["gpu"]}
+            {
+                "dtype": "float32",
+                "seed": "2024",
+                "FLAGS_enable_moe_utils": "true",
+            },
+            {"backend": ["gpu"]},
         )
         for envs in envs_list:
             self.run_test_case(
