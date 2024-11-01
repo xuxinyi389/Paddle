@@ -204,7 +204,7 @@ function(copy_onnx TARGET_NAME)
   # If error of Exitcode0xc000007b happened when a .exe running, copy onnxruntime.dll
   # to the .exe folder.
   if(TARGET ${TARGET_NAME})
-    string(REGEX REPLACE "/" "\\\\" DESTINATION_PATH git
+    string(REGEX REPLACE "/" "\\\\" DESTINATION_PATH
                          "${CMAKE_CURRENT_BINARY_DIR}")
     add_custom_command(
       TARGET ${TARGET_NAME}
