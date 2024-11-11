@@ -20,10 +20,10 @@ from paddle import pir
 from paddle.autograd import ir_backward
 from paddle.autograd.backward_utils import ValueDict, ValueSet
 from paddle.base.core import (
-    call_decomp,
+    call_decomp_rule,
     call_decomp_vjp,
     decomp_ops_contain_unused_output,
-    has_decomp,
+    has_decomp_rule,
     has_decomp_vjp,
 )
 from paddle.base.framework import pir_chunk_id_guard, pir_op_role_guard
@@ -330,7 +330,7 @@ def _decomp_fwd_op(
         op_name = fwd_op.name()
         orig_outs = fwd_op.results()
         decom_rule = register.get_decomp_rule(op_name)
-        has_sink_decomp_rule = has_decomp(fwd_op)
+        has_sink_decomp_rule = has_decomp_rule(fwd_op)
         lower = decom_rule or has_sink_decomp_rule
 
         if lower:
@@ -347,7 +347,7 @@ def _decomp_fwd_op(
             # step3: decompose op, and get new outputs
             input_args = _prepare_python_api_arguments(fwd_op)
             if has_sink_decomp_rule:
-                decomp_outs = call_decomp(fwd_op)
+                decomp_outs = call_decomp_rule(fwd_op)
                 new_outs = _analyse_decomp_results(
                     orig_outs, decomp_outs, fwd_op
                 )
@@ -980,17 +980,41 @@ def get_defining_op_indices(program, output_values):
     return results
 
 
-def auto_recompute_pir_program(pir_program, outputs=None):
+def get_forward_op_idxs(program, is_forward_op_func):
+    def getIdx(op):
+        for idx, op_iter in enumerate(program.global_block().ops):
+            if op == op_iter:
+                return idx
+        raise RuntimeError("op not found in program")
+
+    results = []
+    for op in program.global_block().ops:
+        if is_forward_op_func(op):
+            results.append(getIdx(op))
+    return results
+
+
+def auto_recompute_pir_program(pir_program, is_forward_op_func=None):
     DebugPrint("Start Recompute Pir Program:")
     DebugPrint("Before Recompute: ", pir_program)
     # prepare essential inputs for auto_recompute
     inputs = get_inputs_from_data_and_parameter(pir_program)
-    if outputs is None:
-        outputs = get_outputs_from_fetch_op(pir_program)
-    if not len(outputs):
+    outputs = get_outputs_from_fetch_op(pir_program)
+    fwd_op_end_idx = -1
+    if len(outputs):
+        fwd_op_end_idx = max(get_defining_op_indices(pir_program, outputs))
+
+    if is_forward_op_func is not None:
+        try:
+            fwd_op_end_idx = max(
+                get_forward_op_idxs(pir_program, is_forward_op_func)
+            )
+        except:
+            logging.info("No Forward Ops Found!")
+
+    if fwd_op_end_idx == -1:
         print("Skip Recompute!")
         return pir_program
-    fwd_op_end_idx = max(get_defining_op_indices(pir_program, outputs))
     backward_op_start_idx = fwd_op_end_idx + 1
 
     program, _ = auto_recompute(

@@ -52,6 +52,7 @@ from .creation import (  # noqa: F401
     ones,
     ones_like,
     polar,
+    set_,
     to_tensor,
     tril,
     tril_,
@@ -106,6 +107,8 @@ from .logic import (  # noqa: F401
     allclose,
     bitwise_and,
     bitwise_and_,
+    bitwise_invert,
+    bitwise_invert_,
     bitwise_not,
     bitwise_not_,
     bitwise_or,
@@ -728,6 +731,8 @@ tensor_method_func = [
     'bitwise_xor_',
     'bitwise_not',
     'bitwise_not_',
+    'bitwise_invert',
+    'bitwise_invert_',
     'broadcast_tensors',
     'eig',
     'uniform_',
@@ -842,6 +847,7 @@ tensor_method_func = [
     "combinations",
     'signbit',
     'log_normal_',
+    'set_',
 ]
 
 # this list used in math_op_patch.py for magic_method bind

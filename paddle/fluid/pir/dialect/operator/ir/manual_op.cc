@@ -24,7 +24,8 @@ paddle::dialect::AddN_Op, paddle::dialect::AddNArrayOp,
     paddle::dialect::AssignArray_Op, paddle::dialect::ArrayToTensorOp,
     paddle::dialect::TensorToArrayOp, paddle::dialect::IncrementOp,
     paddle::dialect::Increment_Op, paddle::dialect::ShapeBroadcastOp,
-    paddle::dialect::MemcpyD2hMultiIoOp, paddle::dialect::ArrayPopOp
+    paddle::dialect::MemcpyD2hMultiIoOp, paddle::dialect::ArrayPopOp,
+    paddle::dialect::ShareVarOp
 #else
 #include "paddle/fluid/pir/dialect/operator/ir/manual_op.h"
 #include "paddle/fluid/pir/dialect/kernel/ir/kernel_type.h"
@@ -36,7 +37,7 @@ paddle::dialect::AddN_Op, paddle::dialect::AddNArrayOp,
 #include "paddle/fluid/pir/dialect/operator/ir/op_attribute.h"
 #include "paddle/fluid/pir/dialect/operator/ir/op_type.h"
 #include "paddle/fluid/pir/dialect/operator/ir/pd_op.h"
-#include "paddle/fluid/primitive/rule/vjp/vjp.h"
+#include "paddle/fluid/primitive/vjp_interface/vjp.h"
 #include "paddle/phi/api/lib/data_type_set.h"
 #include "paddle/phi/api/lib/utils/allocator.h"
 #include "paddle/phi/core/dense_tensor.h"
@@ -4724,4 +4725,5 @@ IR_DEFINE_EXPLICIT_TYPE_ID(paddle::dialect::Increment_Op)
 IR_DEFINE_EXPLICIT_TYPE_ID(paddle::dialect::MemcpyD2hMultiIoOp)
 IR_DEFINE_EXPLICIT_TYPE_ID(paddle::dialect::ShapeBroadcastOp)
 IR_DEFINE_EXPLICIT_TYPE_ID(paddle::dialect::ArrayPopOp)
+IR_DEFINE_EXPLICIT_TYPE_ID(paddle::dialect::ShareVarOp)
 #endif

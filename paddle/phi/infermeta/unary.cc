@@ -3430,6 +3430,15 @@ void PSendArrayInferMeta(const MetaTensor& x, int peer) {
           "The peer (%d) for p_send op must be non-negative.", peer));
 }
 
+void SetInferMeta(const MetaTensor& x,
+                  const std::vector<int64_t>& shape,
+                  const std::vector<int64_t>& stride,
+                  MetaTensor* out) {
+  out->set_dtype(x.dtype());
+  out->set_dims(common::make_ddim(shape));
+  out->set_strides(common::make_ddim(stride));
+}
+
 void SendV2InferMeta(const int peer, const int ring_id) {
   PADDLE_ENFORCE_GE(
       peer,
@@ -3864,6 +3873,12 @@ void ReshapeInferMeta(const MetaTensor& x,
   InferMetaFromVecValue(x, shape_data, out);
 }
 
+void ViewShapeInferMeta(const MetaTensor& input,
+                        const std::vector<int64_t>& shape,
+                        MetaTensor* out) {
+  InferMetaFromVecValue(input, shape, out);
+}
+
 void ReshapeWithXShapeInferMeta(const MetaTensor& x,
                                 const IntArray& shape,
                                 MetaTensor* out,
@@ -4178,6 +4193,37 @@ void SliceRawInferMeta(const MetaTensor& input,
   if (!new_axes.empty() && new_axes[0] != 0) {
     out->share_lod(input);
   }
+  out->set_dtype(input.dtype());
+}
+
+void TensorSliceInferMeta(const MetaTensor& input,
+                          int64_t begin_idx,
+                          int64_t end_idx,
+                          MetaTensor* out) {
+  const auto& in_dims = input.dims();
+  PADDLE_ENFORCE_GE(
+      begin_idx,
+      0,
+      common::errors::OutOfRange("The start row index must be greater than 0."
+                                 "But received the start index is d%.",
+                                 begin_idx));
+  PADDLE_ENFORCE_LE(
+      end_idx,
+      in_dims[0],
+      common::errors::OutOfRange("The end row index is out of bound."));
+
+  PADDLE_ENFORCE_LT(
+      begin_idx,
+      end_idx,
+      common::errors::InvalidArgument(
+          "The start row index must be less than the end row index."
+          "But received the start index = %d, the end index = %d.",
+          begin_idx,
+          end_idx));
+
+  DDim out_dims(in_dims);
+  out_dims[0] = end_idx - begin_idx;
+  out->set_dims(out_dims);
   out->set_dtype(input.dtype());
 }
 
@@ -5343,8 +5389,7 @@ void UnchangedArrayInferMeta(const MetaTensor& x, MetaTensor* out) {
 void UnchangedVectorInferMeta(const std::vector<const MetaTensor*>& xs,
                               std::vector<MetaTensor*> outs) {
   for (size_t i = 0; i < xs.size(); ++i) {
-    outs[i]->set_dtype(xs[i]->dtype());
-    outs[i]->set_layout(xs[i]->layout());
+    outs[i]->share_meta(*xs[i]);
   }
 }
 
