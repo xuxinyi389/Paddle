@@ -1523,10 +1523,16 @@ void HandleForPyLayerOp(
   auto old_pylayerop = op_item->dyn_cast<PyLayerOp>();
   std::vector<pir::Type> new_pylayerop_outputs;
   for (size_t i = 0; i < old_pylayerop.num_results(); ++i) {
-    new_pylayerop_outputs.push_back(
+      VLOG(0)<< "**********"<<old_pylayerop.result(i).type().storage();
+      if(!bool(old_pylayerop.result(i).type())){
+        new_pylayerop_outputs.push_back(
+          old_pylayerop.result(i).type());
+    } else{
+      new_pylayerop_outputs.push_back(
         ConvertOpTypeToKernelType(ctx, old_pylayerop.result(i).type(), place));
+    }
   }
-
+         
   // Create PyLayerOp and insert to kernel dialect program
   pir::Builder builder(ctx, block);
   auto new_pylayerop =

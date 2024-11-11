@@ -755,10 +755,10 @@ static std::vector<std::vector<pir::Value>> GenerateBackwardBlockForPyLayerOp(
   // 1. construct pylayer grad op
   VLOG(6) << "Prepare Outputs for pylayer_grad";
   std::vector<pir::Type> output_types;
-  for (size_t i = 0; i < inputs_.size(); ++i) {
-    if (!stop_gradients[i][0]) {
-      output_types.push_back(inputs_[i][0].type());
-    }
+  // the last input of pylayer op is create_stack op's output 
+  // whose stopgradient is always True.
+  for (size_t i = 0; i < inputs_.size() - 1; ++i) {
+    output_types.push_back(inputs_[i][0].type());
   }
 
   VLOG(6) << "Prepare Inputs for pylayer_grad";
@@ -772,9 +772,9 @@ static std::vector<std::vector<pir::Value>> GenerateBackwardBlockForPyLayerOp(
                           .GetBuilder()
                           ->Build<paddle::dialect::PyLayerOp>(
                               output_grads, std::move(output_types), -1);
-
+  
   VLOG(6) << "Construct pylayer_grad finished";
-
+  std::cout << *pylayer_grad << std::endl;
   // 2.1 Get registered backward function from
   // `PythonCallableRegistrar::python_callable_registry_`.
   int backward_function_id =
@@ -824,10 +824,15 @@ static std::vector<std::vector<pir::Value>> GenerateBackwardBlockForPyLayerOp(
 
     VLOG(6) << "call pylayer op backward function";
     PirCallPythonFunc(py_callable, output_grads, &pylayer_grad_inputs);
-
+    // for (int i =0; i < pylayer_grad_inputs.size(); ++i) {
+    //   VLOG(6) << "***************0****************";
+    //   VLOG(6) << "pylayer_grad_inputs[" << i << "] = " << pylayer_grad_inputs[i].ConvertToValue();
+    // }
+    VLOG(6) << "***************1****************";
     // append yield op for outputs value
     dialect::ApiBuilder::Instance().GetBuilder()->Build<pir::YieldOp>(
         pylayer_grad_inputs);
+    VLOG(6) << "**************2*****************";
     // exit block of pylayer_grad
   }
   VLOG(6) << "Construct pylayer backward block finished";
@@ -855,6 +860,7 @@ void BindVjp(pybind11::module *m) {
          const std::vector<std::vector<pir::Value>> &outputs,
          const std::vector<std::vector<pir::Value>> &out_grads,
          const std::vector<std::vector<bool>> &stop_gradients) {
+        VLOG(0) << "------------------- CALL VJP ---------------------";
         // NOTE(dev): Prim decomposed rules will call paddle::dialect::xx
         // api, which has amp strategy. But Prim already process cast operation
         // and we need to disable amp strategy here.

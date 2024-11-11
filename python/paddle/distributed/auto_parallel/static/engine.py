@@ -937,7 +937,7 @@ class Engine:
             )
             self._job_plan = core.Plan(jobs, type_to_program)
 
-        if self._strategy.fused_passes.fused_passes_list is not None:
+        if self._strategy.fused_passes.fused_passes_list is not None and self._strategy.fused_passes.fused_passes_list:
             pm = pir.PassManager()
             for p in self._strategy.fused_passes.fused_passes_list:
                 # Temporary implementation, it will be refined when auto_parallel refactored
@@ -966,6 +966,7 @@ class Engine:
         self._pir_dense_main_progs[mode] = dense_program
         self._pir_dist_main_progs[mode] = dist_program
         self._pir_dist_startup_progs[mode] = startup_program
+        print(dense_program,flush=1)
 
     def _prepare_program(self, mode, init_parameters=True):
         if self._in_pir_mode:

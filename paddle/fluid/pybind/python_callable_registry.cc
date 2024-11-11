@@ -37,6 +37,9 @@ void PirCallPythonFunc(py::object *callable,
   auto ret_tuple = py::cast<py::tuple>(ret);
   size_t ret_num = py::len(ret_tuple);
   size_t out_num = outs->size();
+  std::cout << "ret_num = " << ret_num;
+  std::cout << "out_num = " << out_num << std::endl;
+  
   if (UNLIKELY(ret_num != out_num)) {
     // Python function has no return values or returns None
     // In this case, ret_num = 1 && ret[0] == None && out_num should be 0
@@ -66,14 +69,20 @@ void PirCallPythonFunc(py::object *callable,
             "this case, ret_num = 1 && ret[0] == None && out_num should "
             "be 0. But ret[0] is not None"));
   }
+  
 
   for (size_t i = 0; i < out_num; ++i) {
     try {
-      auto py_out_value = py::cast<pir::Value>(ret_tuple[i]);
-      PADDLE_ENFORCE_NOT_NULL(py_out_value.impl(),
-                              common::errors::InvalidArgument(
-                                  "Output value %d should not be nullptr", i));
-      (*outs)[i] = py_out_value;
+      if (ret_tuple[i].is_none()) {
+        VLOG(6) << "Set output value as fake_value";
+         (*outs)[i] = pir::Value(nullptr);
+      } else {
+        auto py_out_value = py::cast<pir::Value>(ret_tuple[i]);
+        PADDLE_ENFORCE_NOT_NULL(py_out_value.impl(),
+                                common::errors::InvalidArgument(
+                                    "Output value %d should not be nullptr", i));
+        (*outs)[i] = py_out_value;
+      }
     } catch (py::cast_error &) {
       PADDLE_THROW(common::errors::InvalidArgument(
           "pybind11::cast to pir::Value error. The %d-th output exception is "
