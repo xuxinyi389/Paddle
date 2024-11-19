@@ -275,6 +275,7 @@ std::tuple<Tensor, Tensor, Tensor, Tensor, Tensor, Tensor> batch_norm_decomp(
 
   std::vector<int64_t> x_dim = x_cast.shape();
   std::vector<int64_t> stats_shape;
+  Tensor eps = full_scalar<T>(epsilon, x_cast.dtype());
 
   Tensor x_hat;
   Tensor batch_mean;
@@ -283,7 +284,7 @@ std::tuple<Tensor, Tensor, Tensor, Tensor, Tensor, Tensor> batch_norm_decomp(
     batch_mean = mean_decomp<T>(x_cast, reduce_axes, true);
     auto temp = mean_decomp<T>(x_cast * x_cast, reduce_axes, true);
     auto batch_var = temp - batch_mean * batch_mean;
-    inv_std = rsqrt<T>(batch_var + epsilon);
+    inv_std = rsqrt<T>(batch_var + eps);
 
     x_hat = (x_cast - batch_mean) * inv_std;
 
@@ -298,7 +299,7 @@ std::tuple<Tensor, Tensor, Tensor, Tensor, Tensor, Tensor> batch_norm_decomp(
     assign_out_<T>(run_var_, run_var);
   } else {
     x_hat = (x_cast - reshape<T>(run_mean, scale_bias_new_shape)) *
-            rsqrt<T>(reshape<T>(run_var, scale_bias_new_shape) + epsilon);
+            rsqrt<T>(reshape<T>(run_var, scale_bias_new_shape) + eps);
 
     run_mean_ = run_mean;
     run_var_ = run_var;
@@ -483,7 +484,7 @@ std::vector<Tensor> meshgrid_decomp(const std::vector<Tensor>& x) {
 
     for (int64_t i = 0; i < rank; i++) {
       if (tar_shape[i] == 1) {
-        res.push_back(backend::expand_with_tensor<T>(x[i], tar_tensor_shape));
+        res.push_back(backend::expand<T>(x[i], tar_tensor_shape));
       } else {
         std::vector<int64_t> unsqueeze_dim;
         for (int64_t k = 0; k < rank; k++) {
@@ -491,8 +492,8 @@ std::vector<Tensor> meshgrid_decomp(const std::vector<Tensor>& x) {
             unsqueeze_dim.push_back(k);
           }
         }
-        res.push_back(backend::expand_with_tensor<T>(
-            unsqueeze<T>(x[i], unsqueeze_dim), tar_tensor_shape));
+        res.push_back(backend::expand<T>(unsqueeze<T>(x[i], unsqueeze_dim),
+                                         tar_tensor_shape));
       }
     }
 
@@ -778,15 +779,13 @@ std::tuple<Tensor, Tensor, Tensor> instance_norm_decomp(
 
     Tensor scale_cast;
     if (scale) {
-      scale_cast =
-          backend::reshape_with_tensor<T>(scale.get(), slice_shape_tensor);
+      scale_cast = backend::reshape<T>(scale.get(), slice_shape_tensor);
       scale_cast = ConverToMT<T>(scale_cast);
       out = out * scale_cast;
     }
     Tensor bias_cast;
     if (bias) {
-      bias_cast =
-          backend::reshape_with_tensor<T>(bias.get(), slice_shape_tensor);
+      bias_cast = backend::reshape<T>(bias.get(), slice_shape_tensor);
       bias_cast = ConverToMT<T>(bias_cast);
       out = out + bias_cast;
     }
@@ -927,8 +926,8 @@ Tensor clip_decomp(const Tensor& x, const Tensor& min, const Tensor& max) {
   }
 
   if (has_dynamic_shape(x.shape())) {
-    min_reshape = backend::expand_with_tensor<T>(min_reshape, shape<T>(x));
-    max_reshape = backend::expand_with_tensor<T>(max_reshape, shape<T>(x));
+    min_reshape = backend::expand<T>(min_reshape, shape<T>(x));
+    max_reshape = backend::expand<T>(max_reshape, shape<T>(x));
   } else {
     min_reshape = expand<T>(min_reshape, x.shape());
     max_reshape = expand<T>(max_reshape, x.shape());
@@ -1219,8 +1218,8 @@ Tensor index_sample_decomp(const Tensor& x, const Tensor& index) {
       backend::arange_with_tensor<T>(start, index_dim, step, index.dtype()),
       tmp_shape);
 
-  auto index_res = reshape<T>(
-      backend::expand_with_tensor<T>(arange_tmp, shape<T>(index)), tmp_shape);
+  auto index_res =
+      reshape<T>(backend::expand<T>(arange_tmp, shape<T>(index)), tmp_shape);
   auto index_ = reshape<T>(index, tmp_shape);
   auto concat_res = concat<T>({index_res, index_}, 1);
   auto res = backend::reshape<T>(gather_nd<T>(x, concat_res), shape<T>(index));
@@ -1354,7 +1353,7 @@ std::vector<Tensor> unstack_decomp(const Tensor& x, int axis, const int num) {
     }
     const Tensor new_shape = concat<T>(new_shape_vec);
     std::transform(res.begin(), res.end(), res.begin(), [&](Tensor& x) {
-      return backend::reshape_with_tensor<T>(x, new_shape);
+      return backend::reshape<T>(x, new_shape);
     });
   } else {
     std::vector<int64_t> new_shape;

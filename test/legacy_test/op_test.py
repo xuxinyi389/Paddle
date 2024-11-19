@@ -709,7 +709,7 @@ class OpTest(unittest.TestCase):
         for var_name in input_vars:
             if isinstance(input_vars[var_name], list):
                 for name, np_value in self.inputs[var_name]:
-                    tensor = core.LoDTensor()
+                    tensor = core.DenseTensor()
                     if isinstance(np_value, tuple):
                         tensor.set(np_value[0], place)
                         dtype = np.array(np_value[1]).dtype
@@ -758,7 +758,7 @@ class OpTest(unittest.TestCase):
                             tensor.set(np_value, place)
                     feed_map[name] = tensor
             else:
-                tensor = core.LoDTensor()
+                tensor = core.DenseTensor()
                 if isinstance(self.inputs[var_name], tuple):
                     tensor.set(self.inputs[var_name][0], place)
                     if self.is_calc_ref:
@@ -1002,7 +1002,7 @@ class OpTest(unittest.TestCase):
                     v = block.create_var(
                         name=name,
                         dtype=np.float32,
-                        type=core.VarDesc.VarType.LOD_TENSOR,
+                        type=core.VarDesc.VarType.DENSE_TENSOR,
                         persistable=False,
                         stop_gradient=False,
                     )
@@ -1010,7 +1010,7 @@ class OpTest(unittest.TestCase):
                     v = block.create_var(
                         name=name,
                         dtype=np_value_temp.dtype,
-                        type=core.VarDesc.VarType.LOD_TENSOR,
+                        type=core.VarDesc.VarType.DENSE_TENSOR,
                         persistable=False,
                         stop_gradient=False,
                     )
@@ -1028,7 +1028,7 @@ class OpTest(unittest.TestCase):
             if name not in np_list:
                 assert var_proto.intermediate, f"{name} not found"
                 v = block.create_var(
-                    dtype='float32', type=core.VarDesc.VarType.LOD_TENSOR
+                    dtype='float32', type=core.VarDesc.VarType.DENSE_TENSOR
                 )
                 var_dict[name].append(v)
                 if if_return_inputs_grad_dict:
@@ -2855,17 +2855,17 @@ class OpTest(unittest.TestCase):
                     # The output is dispensable or intermediate.
                     break
                 out = fetch_outs[i]
-                if isinstance(out, core.LoDTensor):
+                if isinstance(out, core.DenseTensor):
                     lod_level_runtime = len(out.lod())
                 else:
-                    if isinstance(out, core.LoDTensorArray):
+                    if isinstance(out, core.DenseTensorArray):
                         warnings.warn(
-                            "The check of LoDTensorArray's lod_level is not implemented now!"
+                            "The check of DenseTensorArray's lod_level is not implemented now!"
                         )
                     lod_level_runtime = 0
 
                 var = self.program.global_block().var(var_name)
-                if var.type == core.VarDesc.VarType.LOD_TENSOR:
+                if var.type == core.VarDesc.VarType.DENSE_TENSOR:
                     lod_level_compile = var.lod_level
                 else:
                     lod_level_compile = 0
@@ -3679,7 +3679,7 @@ class OpTest(unittest.TestCase):
 
     @staticmethod
     def _numpy_to_lod_tensor(np_value, lod, place):
-        tensor = core.LoDTensor()
+        tensor = core.DenseTensor()
         tensor.set(np_value, place)
         if lod is not None:
             tensor.set_recursive_sequence_lengths(lod)

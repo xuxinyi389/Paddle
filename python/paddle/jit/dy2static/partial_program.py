@@ -152,7 +152,7 @@ class PartialProgramLayer:
         **1. This is a very low level API. Users should not use this API
              directly. Please use `partial_program_from(concrete_program)`
              to create it.
-        **2. LoDTensorArray is not currently supported in the output.
+        **2. DenseTensorArray is not currently supported in the output.
 
     Args:
         main_program(Program): The main program that contains ops need to be executed.
@@ -591,7 +591,7 @@ class PartialProgramLayer:
             if exist a op whose inputs is var, then return True
             """
             if not isinstance(var, framework.Variable) or var.type not in [
-                core.VarDesc.VarType.LOD_TENSOR,
+                core.VarDesc.VarType.DENSE_TENSOR,
                 core.VarDesc.VarType.SELECTED_ROWS,
             ]:
                 return False
@@ -1077,7 +1077,7 @@ class PartialProgramLayer:
         # will be SelectedRows, not LoDTensor. But tracer will just
         # set param grad Tensor by forward Tensor(LoDTensor)
         # If we don't change grad_var type here, RunProgramOp need
-        # transform SelectedRows to LoDTensor forcibly, it may not
+        # transform SelectedRows to DenseTensor forcibly, it may not
         # be user wanted result.
         for param in params:
             grad_name = param.name + core.grad_var_suffix()

@@ -809,7 +809,11 @@ class Optimizer:
     def _create_param_lr(self, param_and_grad):
         # create learning rate tensor for every parameter
         param = param_and_grad[0]
-        if hasattr(param, 'optimize_attr') and param.optimize_attr is not None:
+        if (
+            hasattr(param, 'optimize_attr')
+            and param.optimize_attr is not None
+            and 'learning_rate' in param.optimize_attr
+        ):
             param_lr = param.optimize_attr['learning_rate']
             if isinstance(param_lr, (Variable, paddle.pir.Value)):
                 return param_lr
@@ -1016,7 +1020,7 @@ class Optimizer:
                 name=var_name,
                 persistable=True,
                 dtype=dtype or param.dtype,
-                type=core.VarDesc.VarType.LOD_TENSOR,
+                type=core.VarDesc.VarType.DENSE_TENSOR,
                 shape=shape,
                 belong_to_optimizer=True,
             )
@@ -1671,7 +1675,7 @@ class Optimizer:
                     dtype=param.dtype,
                     shape=param.shape,
                     lod_level=param.lod_level,
-                    type=core.VarDesc.VarType.LOD_TENSOR,
+                    type=core.VarDesc.VarType.DENSE_TENSOR,
                 )
 
             inputs = {"X": [grad, regularization_term]}

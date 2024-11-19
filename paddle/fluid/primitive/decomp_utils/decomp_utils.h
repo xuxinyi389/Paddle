@@ -351,7 +351,7 @@ class LayerNormDecompHelper {
     if (static_norm_shape_) {
       return reshape<T>(s, normlized_shape_);
     } else {
-      return backend::reshape_with_tensor<T>(
+      return backend::reshape<T>(
           s, get_slice_vec<T>(shape<T>(x), begin_norm_axis_, x_rank_));
     }
   }
@@ -463,6 +463,52 @@ class BatchNormDecompHelper {
   std::vector<int64_t> reduce_axis_;
   std::vector<int64_t> scale_bias_new_shape_;
   int64_t channel_axis_;
+  int64_t x_rank_;
+};
+
+template <typename T>
+class InstanceNormDecompHelper {
+ public:
+  explicit InstanceNormDecompHelper(const Tensor& x) {
+    x_dims_ = phi::vectorize(x.dims());
+    x_rank_ = x_dims_.size();
+
+    for (int64_t i = 2; i < x_rank_; ++i) {
+      reduce_axis_.push_back(i);
+      n_plus_reduce_axis_.push_back(i);
+    }
+    n_plus_reduce_axis_.push_back(0);
+  }
+
+  Tensor GetHW(const Tensor& x) {
+    auto dims = phi::vectorize(x.dims());
+    int64_t rank = dims.size();
+    if (has_dynamic_shape(x.shape())) {
+      Tensor x_shape = shape<T>(x);
+      auto hw = full_scalar<T>(1.0, x.dtype());
+      for (int64_t i = 2; i < rank; ++i) {
+        hw = hw * get_slice<T>(x_shape, i);
+      }
+      return cast<T>(hw, x.dtype());
+    } else {
+      int64_t hw = 1;
+      for (int64_t i = 2; i < rank; ++i) {
+        hw *= dims[i];
+      }
+      return full_scalar<T>(hw, x.dtype());
+    }
+  }
+
+  const std::vector<int64_t> GetReduceAxis() const { return reduce_axis_; }
+  const std::vector<int64_t> GetNPlusReduceAxis() const {
+    return n_plus_reduce_axis_;
+  }
+  const std::vector<int64_t>& GetDims() const { return x_dims_; }
+
+ private:
+  std::vector<int64_t> reduce_axis_;
+  std::vector<int64_t> n_plus_reduce_axis_;
+  std::vector<int64_t> x_dims_;
   int64_t x_rank_;
 };
 

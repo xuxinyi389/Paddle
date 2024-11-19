@@ -249,10 +249,8 @@ bool Expr::is_var() const { return As<_Var_>(); }
 
 bool Expr::is_index() const {
   switch (node_type()) {
-    case ir::IrNodeTy::Cast:
-      [[fallthrough]];
     case ir::IrNodeTy::_Var_:
-      return true;
+      [[fallthrough]];
     case ir::IrNodeTy::IntImm: {
       if (type().is_index_type()) return true;
     }
@@ -343,6 +341,30 @@ void IrNode::convert_int32_to_int64() {
   type_ = Int(64);
   for (Expr &operand : operands) {
     operand->convert_int32_to_int64();
+  }
+}
+
+void IrNode::convert_int64_to_int32() {
+  if (type_ != Int(64) && type_ != UInt(64))
+    if (type_ != Int(32) && type_ != UInt(32))
+      PADDLE_ENFORCE_EQ(type_.is_unk(),
+                        true,
+                        ::common::errors::InvalidArgument(
+                            "Current only support convert int64_t "
+                            "to int32_t, but get type is: %s",
+                            type_));
+
+  if (node_type() == IrNodeTy::IntImm) {
+    auto *int_imm = static_cast<IntImm *>(this);
+    if (int_imm->value >= INT_MAX) return;
+    int_imm->value = int32_t(int_imm->value);
+  }
+
+  if (type_ == Int(64)) type_ = Int(32);
+  if (type_ == UInt(64)) type_ = UInt(32);
+
+  for (Expr &operand : operands) {
+    operand->convert_int64_to_int32();
   }
 }
 

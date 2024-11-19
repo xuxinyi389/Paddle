@@ -91,22 +91,22 @@ bool CheckVarId(int proto_id) {
 }
 
 TEST(var_type_traits, check_proto_type_id) {
-  ASSERT_TRUE(CheckVarId<phi::DenseTensor>(proto::VarType::LOD_TENSOR));
+  ASSERT_TRUE(CheckVarId<phi::DenseTensor>(proto::VarType::DENSE_TENSOR));
   ASSERT_TRUE(CheckVarId<phi::SelectedRows>(proto::VarType::SELECTED_ROWS));
   ASSERT_TRUE(CheckVarId<std::vector<Scope *>>(proto::VarType::STEP_SCOPES));
   ASSERT_TRUE(CheckVarId<LoDRankTable>(proto::VarType::LOD_RANK_TABLE));
-  ASSERT_TRUE(CheckVarId<phi::TensorArray>(proto::VarType::LOD_TENSOR_ARRAY));
+  ASSERT_TRUE(CheckVarId<phi::TensorArray>(proto::VarType::DENSE_TENSOR_ARRAY));
   ASSERT_TRUE(CheckVarId<phi::PlaceList>(proto::VarType::PLACE_LIST));
   ASSERT_TRUE(CheckVarId<ReaderHolder>(proto::VarType::READER));
   ASSERT_TRUE(CheckVarId<int>(proto::VarType::INT32));
   ASSERT_TRUE(CheckVarId<float>(proto::VarType::FP32));
 
-  ASSERT_EQ(proto::VarType_Type_LOD_TENSOR, proto::VarType::LOD_TENSOR);
+  ASSERT_EQ(proto::VarType_Type_DENSE_TENSOR, proto::VarType::DENSE_TENSOR);
   ASSERT_EQ(proto::VarType_Type_SELECTED_ROWS, proto::VarType::SELECTED_ROWS);
   ASSERT_EQ(proto::VarType_Type_STEP_SCOPES, proto::VarType::STEP_SCOPES);
   ASSERT_EQ(proto::VarType_Type_LOD_RANK_TABLE, proto::VarType::LOD_RANK_TABLE);
-  ASSERT_EQ(proto::VarType_Type_LOD_TENSOR_ARRAY,
-            proto::VarType::LOD_TENSOR_ARRAY);
+  ASSERT_EQ(proto::VarType_Type_DENSE_TENSOR_ARRAY,
+            proto::VarType::DENSE_TENSOR_ARRAY);
   ASSERT_EQ(proto::VarType_Type_PLACE_LIST, proto::VarType::PLACE_LIST);
   ASSERT_EQ(proto::VarType_Type_READER, proto::VarType::READER);
   ASSERT_EQ(proto::VarType_Type_FEED_MINIBATCH, proto::VarType::FEED_MINIBATCH);

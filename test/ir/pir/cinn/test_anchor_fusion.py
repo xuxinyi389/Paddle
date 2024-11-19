@@ -249,7 +249,7 @@ class TestAnchorFusion(unittest.TestCase):
             x = paddle.rand((128, 2048, 7, 7))
             return (x,)
 
-        self.check_accuracy_and_kernel_num(init, func)
+        self.check_accuracy_and_kernel_num(init, func, kernel_num=1)
 
     def test_split_fusion(self):
         def func(x):
@@ -262,6 +262,19 @@ class TestAnchorFusion(unittest.TestCase):
             return (x,)
 
         self.check_accuracy_and_kernel_num(init, func)
+
+    def test_reduce_cant_anchor_fusion(self):
+        def func(x):
+            a = x * 2
+            b = paddle.max(a, axis=2, keepdim=True)
+            c = paddle.max(a, axis=3, keepdim=True)
+            return a, b, c
+
+        def init():
+            x = paddle.rand((4, 256, 16, 16), dtype="float16")
+            return (x,)
+
+        self.check_accuracy_and_kernel_num(init, func, kernel_num=2)
 
 
 if __name__ == "__main__":

@@ -4196,10 +4196,10 @@ void SliceRawInferMeta(const MetaTensor& input,
   out->set_dtype(input.dtype());
 }
 
-void TensorSliceInferMeta(const MetaTensor& input,
-                          int64_t begin_idx,
-                          int64_t end_idx,
-                          MetaTensor* out) {
+void ViewSliceInferMeta(const MetaTensor& input,
+                        int64_t begin_idx,
+                        int64_t end_idx,
+                        MetaTensor* out) {
   const auto& in_dims = input.dims();
   PADDLE_ENFORCE_GE(
       begin_idx,
@@ -5961,10 +5961,10 @@ void WeightQuantizeInferMeta(const MetaTensor& x,
   } else if (algo == "weight_only_int4") {
     dim_out = std::vector<int64_t>({x_dims[1] / 2, x_dims[0]});
   } else {
-    common::errors::InvalidArgument(
+    PADDLE_THROW(common::errors::InvalidArgument(
         "The algo must be in ['weight_only_int8', 'weight_only_int4', "
         "'llm.int8'], but got[%s]",
-        algo);
+        algo));
   }
   out->set_dims(common::make_ddim(dim_out));
 

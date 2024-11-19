@@ -837,7 +837,7 @@ class Engine:
         # TODO(hitywt) Step 3.2: Reshard Pass
         #   resolute the reshard op into special collective operation.
         #   collect the communicator created during resolution.
-        ReshardPasses.apply_reshard_pass(dist_program, params_grads)
+        ReshardPasses.apply_reshard_pass(dist_program)
 
         # Note(luchang): When using VPP pipeline pass, we need to split the whole graph into
         # multiple chunks and adjust the process mesh accordingly. Here, we need to store the
@@ -947,7 +947,10 @@ class Engine:
             )
             self._job_plan = core.Plan(jobs, type_to_program)
 
-        if self._strategy.fused_passes.fused_passes_list is not None:
+        if (
+            self._strategy.fused_passes.fused_passes_list is not None
+            and self._strategy.fused_passes.fused_passes_list
+        ):
             pm = pir.PassManager()
             for p in self._strategy.fused_passes.fused_passes_list:
                 # Temporary implementation, it will be refined when auto_parallel refactored
@@ -972,6 +975,7 @@ class Engine:
                 for job_type in self._job_plan.job_types():
                     ir_program = self._job_plan.ir_program(job_type)
                     pm.run(ir_program)
+
         remove_unuseful_comm_op_pass(dense_program)
         self._pir_dense_main_progs[mode] = dense_program
         self._pir_dist_main_progs[mode] = dist_program

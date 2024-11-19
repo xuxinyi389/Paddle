@@ -713,7 +713,7 @@ class DygraphGeneratorLoader(DataLoaderBase):
             if not self._thread_done_event.is_set():
                 if tensor_list is not None:
                     try:
-                        array = core.LoDTensorArray()
+                        array = core.DenseTensorArray()
                         for tensor in tensor_list:
                             array.append(tensor)
                         if not self._blocking_queue.push(array):
@@ -731,11 +731,11 @@ class DygraphGeneratorLoader(DataLoaderBase):
             _set_expected_place(legacy_expected_place)
 
             for sample in self._batch_reader():
-                array = core.LoDTensorArray()
+                array = core.DenseTensorArray()
                 for item in sample:
-                    if not isinstance(item, core.LoDTensor):
+                    if not isinstance(item, core.DenseTensor):
                         item = self._check_input_array(item)
-                        tmp = core.LoDTensor()
+                        tmp = core.DenseTensor()
                         tmp.set(item, core.CPUPlace())
                         item = tmp
 
@@ -1018,11 +1018,11 @@ class GeneratorLoader(DataLoaderBase):
                         return
 
                 for tensors in self._tensor_reader():
-                    array = core.LoDTensorArray()
+                    array = core.DenseTensorArray()
                     for item in tensors:
-                        if not isinstance(item, core.LoDTensor):
+                        if not isinstance(item, core.DenseTensor):
                             item = self._check_input_array(item)
-                            tmp = core.LoDTensor()
+                            tmp = core.DenseTensor()
                             tmp.set(item, core.CPUPlace())
                             item = tmp
 

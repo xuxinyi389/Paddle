@@ -69,6 +69,14 @@ bool ForExtentsEqual(const std::vector<ir::Expr>& first,
   return true;
 }
 
+bool BlockWithSameLoop(const std::vector<ir::Expr>& first,
+                       const std::vector<ir::Expr>& second) {
+  VLOG(8) << "First inner loop: " << first.back();
+  VLOG(8) << "Second inner loop: " << second.back();
+  VLOG(8) << "Equal: " << (first.back() == second.back());
+  return first.back() == second.back();
+}
+
 std::string BlockToName(const ir::Expr& block) {
   PADDLE_ENFORCE_NOT_NULL(
       block.As<ir::ScheduleBlockRealize>(),
@@ -129,7 +137,9 @@ void ComputeAtReductionTactic::ComputeAtReduceInit(
       GetRootInitBlockId(blocks);
   if (!root_init_block_id_value.has_value()) return;
   const std::string root_init_block_id = root_init_block_id_value.value();
-  if (root_init_block_id == block_id) return;
+  if (BlockWithSameLoop(sch->GetLoops(root_init_block_id),
+                        sch->GetLoops(block_id)))
+    return;
 
   const std::vector<ir::Expr> root_loops = sch->GetLoops(root_init_block_id);
   const std::vector<ir::Expr> cur_loops = sch->GetLoops(block_id);
@@ -168,8 +178,19 @@ std::optional<std::string> FindCandidateBlockId(
     for (const auto& iter_value : sbr->iter_values) {
       ir::Expr map_iter_value = ir::ir_utils::IRCopy(iter_value);
       for (const auto& [lhs_var, rhs_var] : for_var_map) {
-        cinn::optim::ReplaceVarWithExpr(
-            &map_iter_value, lhs_var, ir::ir_utils::IRCopy(rhs_var));
+        // cinn::optim::ReplaceVarWithExpr(
+        //     &map_iter_value, lhs_var, ir::ir_utils::IRCopy(rhs_var));
+        auto tmp_var =
+            ir::_Var_::Make(rhs_var->lower_bound,
+                            rhs_var->upper_bound,
+                            lhs_var->name + "_compare_var_" + rhs_var->name,
+                            rhs_var->is_reduce_axis,
+                            rhs_var->is_symbolic_constant,
+                            rhs_var->is_keepdim);
+        map_iter_value = ir::analyzer::ReplaceVarWithExpr(
+            map_iter_value, {lhs_var}, {tmp_var});
+        map_iter_value = ir::analyzer::ReplaceVarWithExpr(
+            map_iter_value, {rhs_var}, {tmp_var});
       }
       map_iter_values.push_back(map_iter_value);
     }
@@ -368,7 +389,9 @@ void ComputeAtReductionTactic::ComputeAtReduceLoad(
       FindCandidateBlockId(sch, sch->GetAllBlocks(), sch->GetBlock(block_id));
   if (!candidate_block_id_value.has_value()) return;
   const std::string candidate_block_id = candidate_block_id_value.value();
-  if (candidate_block_id == block_id) return;
+  if (BlockWithSameLoop(sch->GetLoops(candidate_block_id),
+                        sch->GetLoops(block_id)))
+    return;
   VLOG(8) << "Candidate block: " << candidate_block_id;
 
   // 2. Check block-level dependency.

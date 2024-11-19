@@ -260,13 +260,13 @@ class _DataLoaderIterSingleProcess(_DataLoaderIterBase):
                 break
 
             try:
-                # pack as LoDTensorArray
-                array = core.LoDTensorArray()
+                # pack as DenseTensorArray
+                array = core.DenseTensorArray()
                 for slot in batch:
                     if isinstance(slot, paddle.Tensor):
                         slot = slot.value().get_tensor()
-                    elif not isinstance(slot, core.LoDTensor):
-                        tmp = core.LoDTensor()
+                    elif not isinstance(slot, core.DenseTensor):
+                        tmp = core.DenseTensor()
                         tmp.set(slot, core.CPUPlace())
                         slot = tmp
 
@@ -626,19 +626,19 @@ class _DataLoaderIterMultiProcess(_DataLoaderIterBase):
                         self._resume_worker_cnt -= 1
                         continue
                     try:
-                        # pack as LoDTensorArray
-                        array = core.LoDTensorArray()
+                        # pack as DenseTensorArray
+                        array = core.DenseTensorArray()
                         if self._use_shared_memory:
                             for tensor in batch:
                                 array.append(tensor)
                         else:
-                            # LoDTensor not in shared memory is not
+                            # DenseTensor not in shared memory is not
                             # serializable, cannot be create in workers
                             for slot in batch:
                                 if isinstance(slot, paddle.Tensor):
                                     slot = slot.get_tensor()
-                                elif not isinstance(slot, core.LoDTensor):
-                                    tmp = core.LoDTensor()
+                                elif not isinstance(slot, core.DenseTensor):
+                                    tmp = core.DenseTensor()
                                     tmp.set(slot, core.CPUPlace())
                                     slot = tmp
                                 array.append(slot)

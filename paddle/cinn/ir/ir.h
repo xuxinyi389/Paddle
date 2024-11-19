@@ -579,6 +579,8 @@ struct Load : public ExprNode<Load>, public LoadStoreAddrMnger {
 
   void convert_int32_to_int64() override;
 
+  void convert_int64_to_int32() override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Load;
 };
 
@@ -1026,6 +1028,8 @@ struct IndexExpr : public Expr {
   int64_t GetLargestMutiplyPart() const;
 
   IndexExpr Normalize() const;
+
+  bool IsDynamic() const;
 
   // count the `IndeExpr` length, each node has weight 1, e.g.
   // S0,          length = 1

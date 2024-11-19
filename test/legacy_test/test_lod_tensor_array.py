@@ -20,7 +20,7 @@ import paddle
 from paddle.base import core
 
 
-class TestLoDTensorArray(unittest.TestCase):
+class TestDenseTensorArray(unittest.TestCase):
     def test_get_set(self):
         scope = core.Scope()
         arr = scope.var('tmp_lod_tensor_array')
@@ -28,9 +28,8 @@ class TestLoDTensorArray(unittest.TestCase):
         self.assertEqual(0, len(tensor_array))
         cpu = core.CPUPlace()
         for i in range(10):
-            t = core.LoDTensor()
+            t = core.DenseTensor()
             t.set(np.array([i], dtype='float32'), cpu)
-            t.set_recursive_sequence_lengths([[1]])
             tensor_array.append(t)
 
         self.assertEqual(10, len(tensor_array))
@@ -38,15 +37,12 @@ class TestLoDTensorArray(unittest.TestCase):
         for i in range(10):
             t = tensor_array[i]
             self.assertEqual(np.array(t), np.array([i], dtype='float32'))
-            self.assertEqual([[1]], t.recursive_sequence_lengths())
 
-            t = core.LoDTensor()
+            t = core.DenseTensor()
             t.set(np.array([i + 10], dtype='float32'), cpu)
-            t.set_recursive_sequence_lengths([[1]])
             tensor_array[i] = t
             t = tensor_array[i]
             self.assertEqual(np.array(t), np.array([i + 10], dtype='float32'))
-            self.assertEqual([[1]], t.recursive_sequence_lengths())
 
 
 class TestCreateArray(unittest.TestCase):

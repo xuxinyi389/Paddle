@@ -23,6 +23,7 @@ import numpy as np
 
 import paddle
 from paddle.base.framework import use_pir_api
+from paddle.base.libpaddle import pir
 from paddle.base.wrapped_decorator import (
     wrap_decorator,
 )
@@ -30,7 +31,7 @@ from paddle.framework import core
 from paddle.framework.io_utils import is_belong_to_optimizer, is_parameter
 from paddle.static import Variable
 
-from ..process_mesh import ProcessMesh
+from ..process_mesh import ProcessMesh, merge_process_meshes
 from .dist_attribute import DistTensorSpec, OperatorDistAttr, TensorDistAttr
 
 OpRole = core.op_proto_and_checker_maker.OpRole
@@ -39,7 +40,7 @@ OP_ROLE_KEY = core.op_proto_and_checker_maker.kOpRoleAttrName()
 __no_shape_var_type__ = [
     core.VarDesc.VarType.READER,
     core.VarDesc.VarType.STEP_SCOPES,
-    core.VarDesc.VarType.LOD_TENSOR_ARRAY,
+    core.VarDesc.VarType.DENSE_TENSOR_ARRAY,
     core.VarDesc.VarType.FEED_MINIBATCH,
     core.VarDesc.VarType.FETCH_LIST,
 ]
@@ -544,7 +545,7 @@ def _check_param_dict(param_dict):
                     "The type of key of 'param_dict' should be 'str', "
                     f"but got '{type(name)}'."
                 )
-            if not isinstance(value, paddle.base.LoDTensor):
+            if not isinstance(value, paddle.base.DenseTensor):
                 raise TypeError(
                     "The type of value of 'param_dict' should be 'LoDTensor', "
                     f"but got '{type(value)}'."
@@ -1000,7 +1001,7 @@ def _merge_parameter_with_dist_attr(param_list, dist_attr):
 def _slice_parameter_with_dist_attr(param, dist_attr):
     """Slice parameter with distributed attribute"""
     param = (
-        np.array(param) if isinstance(param, paddle.base.LoDTensor) else param
+        np.array(param) if isinstance(param, paddle.base.DenseTensor) else param
     )
     dims_mapping = dist_attr["dims_mapping"]
     process_shape = dist_attr["process_shape"]
@@ -1088,6 +1089,40 @@ def _merge_parameter(
                 )
                 break
             i += 1
+
+
+def _complete_op_dist_attr(program, block=None):
+    if block is None:
+        block = program.global_block()
+    for op in block.ops:
+        for sub_block in op.blocks():
+            _complete_op_dist_attr(program, block=sub_block)
+        if op.dist_attr is None:
+            meshes = []
+            operand_attrs = []
+            result_attrs = []
+            for operand in op.operands_source():
+                tmp_attr = operand.dist_attr()
+                if tmp_attr is None:
+                    operand_attrs.append(pir.Attribute())
+                else:
+                    operand_attrs.append(tmp_attr)
+                    meshes.append(tmp_attr.process_mesh)
+
+            for result in op.results():
+                tmp_attr = result.dist_attr()
+                if tmp_attr is None:
+                    result_attrs.append(pir.Attribute())
+                else:
+                    result_attrs.append(tmp_attr)
+                    meshes.append(tmp_attr.process_mesh)
+            if len(meshes) > 0:
+                mesh = merge_process_meshes(meshes)
+                op.dist_attr = pir.create_op_dist_attribute(
+                    mesh,
+                    operand_attrs,
+                    result_attrs,
+                )
 
 
 def _slice_parameter(complete_param, partition_index_list, length):

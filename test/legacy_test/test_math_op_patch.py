@@ -285,6 +285,10 @@ class TestMathOpPatches(unittest.TestCase):
         if not paddle.framework.use_pir_api():
             a.desc.set_need_check_feed(False)
         b = a.astype('float64')
+
+        c = a.astype(a.dtype)
+        self.assertTrue(c.is_same(a))
+
         place = base.CPUPlace()
         exe = base.Executor(place)
         a_np = np.random.uniform(-1, 1, size=[10, 1]).astype('float64')
@@ -399,12 +403,30 @@ class TestMathOpPatches(unittest.TestCase):
         np.testing.assert_allclose(a_np @ b_np, c_np, rtol=1e-05)
 
     @prog_scope()
+    def test_rmatmul(self):
+        a = paddle.static.data(name='a', shape=[2, 3], dtype='float32')
+        b = paddle.static.data(name='b', shape=[3, 5], dtype='float32')
+        c = b.__rmatmul__(a)
+        a_np = np.random.uniform(-1, 1, size=[2, 3]).astype('float32')
+        b_np = np.random.uniform(-1, 1, size=[3, 5]).astype('float32')
+        place = paddle.CPUPlace()
+        exe = paddle.static.Executor(place)
+        (c_np,) = exe.run(
+            paddle.static.default_main_program(),
+            feed={"a": a_np, "b": b_np},
+            fetch_list=[c],
+        )
+        np.testing.assert_allclose(a_np @ b_np, c_np, rtol=1e-05)
+
+    @prog_scope()
     def test_builtin_type_conversion(self):
         a = paddle.static.data(name="a", shape=[])
         with self.assertRaises(TypeError):
             int(a)
         with self.assertRaises(TypeError):
             float(a)
+        with self.assertRaises(TypeError):
+            complex(a)
 
 
 class TestDygraphMathOpPatches(unittest.TestCase):
@@ -444,6 +466,15 @@ class TestDygraphMathOpPatches(unittest.TestCase):
         np.testing.assert_allclose(actual_out, expect_out, rtol=1e-7, atol=1e-7)
         paddle.enable_static()
 
+    def test_dygraph_rmod(self):
+        paddle.disable_static()
+        self.init_data()
+        # normal case: tenor % nparray
+        expect_out = self.np_a % self.np_b
+        actual_out = self.tensor_b.__rmod__(self.tensor_a)
+        np.testing.assert_allclose(actual_out, expect_out, rtol=1e-7, atol=1e-7)
+        paddle.enable_static()
+
     def test_dygraph_less_than(self):
         paddle.disable_static()
         self.init_data()
@@ -472,6 +503,19 @@ class TestDygraphMathOpPatches(unittest.TestCase):
         tensor_b = paddle.to_tensor(np_b, dtype="int32")
         expect_out = np_a // np_b
         actual_out = tensor_a // np_b
+        np.testing.assert_equal(actual_out, expect_out)
+        paddle.enable_static()
+
+    def test_dygraph_rfloordiv(self):
+        paddle.disable_static()
+        np_a = np.random.random((2, 3, 4)).astype(np.int32)
+        np_b = np.random.random((2, 3, 4)).astype(np.int32)
+        np_b[np.abs(np_b) < 1] = 2
+        # normal case: nparray // tensor
+        tensor_a = paddle.to_tensor(np_a, dtype="int32")
+        tensor_b = paddle.to_tensor(np_b, dtype="int32")
+        expect_out = np_b // np_a
+        actual_out = tensor_b.__rfloordiv__(np_a)
         np.testing.assert_equal(actual_out, expect_out)
         paddle.enable_static()
 
@@ -506,6 +550,16 @@ class TestDygraphMathOpPatches(unittest.TestCase):
         expect_out = self.np_a == self.np_b
         actual_out = self.tensor_a == self.np_b
         np.testing.assert_equal(actual_out, expect_out)
+        paddle.enable_static()
+
+    def test_dygraph_rmatmul(self):
+        paddle.disable_static()
+        a_np = np.random.random((2, 3)).astype(np.float32) * 100
+        b_np = np.random.random((3, 5)).astype(np.float32) * 100
+        a = paddle.to_tensor(a_np)
+        b = paddle.to_tensor(b_np)
+        c = b.__rmatmul__(a)
+        np.testing.assert_allclose(a @ b, c.numpy(), rtol=1e-5, atol=1e-5)
         paddle.enable_static()
 
 

@@ -545,7 +545,7 @@ class _ProgramHolder:
                                 ".".join(["reserve_space", 'tmp'])
                             ),
                             dtype=block.var(op.input("X")[0]).dtype,
-                            type=core.VarDesc.VarType.LOD_TENSOR,
+                            type=core.VarDesc.VarType.DENSE_TENSOR,
                             persistable=False,
                             stop_gradient=True,
                         )
@@ -573,7 +573,7 @@ class _ProgramHolder:
                                         ]
                                     )
                                 ),
-                                type=core.VarDesc.VarType.LOD_TENSOR,
+                                type=core.VarDesc.VarType.DENSE_TENSOR,
                                 persistable=False,
                                 stop_gradient=True,
                             )
@@ -638,7 +638,7 @@ class _ProgramHolder:
 #   The variable/parameter of the dynamic graph is not in the scope, so before the op
 #   executes the program internally, create persistent variables with the
 #   same name as feed, parameters, and fetch in the scope, and share the
-#   LoDTensor of the op input.
+#   DenseTensor of the op input.
 #
 # 2. Forward and Backward Separation:
 #   Because the dynamic graph op performs the forward and backward separately,
@@ -1011,7 +1011,7 @@ def _run_dygraph(instance, input, program_holder):
     # will be SelectedRows, not LoDTensor. But tracer will just
     # set param grad Tensor by forward Tensor(LoDTensor)
     # If we don't change grad_var type here, RunProgramOp need
-    # transform SelectedRows to LoDTensor forcibly, it may not
+    # transform SelectedRows to DenseTensor forcibly, it may not
     # be user wanted result.
     for persistable_var in persistable_vars:
         grad_var_name = persistable_var.name + core.grad_var_suffix()
@@ -1247,8 +1247,8 @@ def append_var_from_block_desc_static(
             var_type = var_desc.type()
             if var_type in [
                 core.VarDesc.VarType.SELECTED_ROWS,
-                core.VarDesc.VarType.LOD_TENSOR,
-                core.VarDesc.VarType.LOD_TENSOR_ARRAY,
+                core.VarDesc.VarType.DENSE_TENSOR,
+                core.VarDesc.VarType.DENSE_TENSOR_ARRAY,
             ]:
                 data_type = var_desc.dtype()
                 var_shape = var_desc.shape()
@@ -1256,8 +1256,8 @@ def append_var_from_block_desc_static(
                 data_type = None
                 var_shape = None
             if var_type in [
-                core.VarDesc.VarType.LOD_TENSOR,
-                core.VarDesc.VarType.LOD_TENSOR_ARRAY,
+                core.VarDesc.VarType.DENSE_TENSOR,
+                core.VarDesc.VarType.DENSE_TENSOR_ARRAY,
             ]:
                 lod_level = var_desc.lod_level()
             else:

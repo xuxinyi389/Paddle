@@ -147,7 +147,7 @@ def is_belong_to_optimizer(var):
 
 def _clone_var_in_block_(block, var):
     assert isinstance(var, Variable)
-    if var.desc.type() == core.VarDesc.VarType.LOD_TENSOR:
+    if var.desc.type() == core.VarDesc.VarType.DENSE_TENSOR:
         return block.create_var(
             name=var.name,
             shape=var.shape,
@@ -181,7 +181,7 @@ def _load_program_scope(main=None, startup=None, scope=None):
 @static_only
 def _legacy_static_save(param_dict, model_path, protocol=2):
     def get_tensor(var):
-        if isinstance(var, (paddle.Tensor, core.LoDTensor)):
+        if isinstance(var, (paddle.Tensor, core.DenseTensor)):
             return np.array(var)
         return var
 

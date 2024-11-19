@@ -89,10 +89,6 @@ PD_DEFINE_bool(
     BoolFromEnv("FLAGS_cinn_bc_branch_optimize", true),
     "Whether to open the broadcast branch optimization in frontend.");
 
-PD_DEFINE_bool(cinn_new_group_scheduler,
-               BoolFromEnv("FLAGS_cinn_new_group_scheduler", true),
-               "Whether to use new group scheduler.");
-
 PD_DEFINE_bool(cinn_bucket_compile,
                BoolFromEnv("FLAGS_cinn_bucket_compile", true),
                "Whether to enable bucket compile for dynamic shape.");
@@ -299,6 +295,10 @@ PD_DEFINE_string(cinn_convert_dynamic_dim_to_static_dim,
 PD_DEFINE_bool(cinn_check_tensor_buffer_map,
                BoolFromEnv("FLAGS_cinn_check_tensor_buffer_map", false),
                "Whether to check tensor buffer mapping in cinn ir.");
+
+PD_DEFINE_bool(cinn_longlong2int_for_integer,
+               BoolFromEnv("FLAGS_cinn_longlong2int_for_integer", true),
+               "Whether to cast long long to int for integer.");
 
 namespace cinn {
 namespace runtime {

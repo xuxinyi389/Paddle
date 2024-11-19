@@ -157,7 +157,7 @@ class WhileOp : public framework::OperatorBase {
                 << "input not found:" << in_name;
       }
 
-      if (var->Type() == framework::proto::VarType::LOD_TENSOR) {
+      if (var->Type() == framework::proto::VarType::DENSE_TENSOR) {
         input_var_original_places[in_name] =
             (var->Get<phi::DenseTensor>()).place();
       } else {
@@ -447,7 +447,7 @@ class WhileGradOp : public framework::OperatorBase {
                   inside_array[j].numel(),
                   0,
                   common::errors::InvalidArgument(
-                      "The numel of %d-th element of var %s (LoDTensorArray) "
+                      "The numel of %d-th element of var %s (DenseTensorArray) "
                       "in while block must be 0, but received its numel is %d.",
                       j,
                       inside_og_name,

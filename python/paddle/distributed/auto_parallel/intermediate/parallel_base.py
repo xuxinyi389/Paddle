@@ -11,11 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 
+import paddle
 import paddle.distributed as dist
+from paddle import pir
+from paddle.base.framework import (
+    in_dygraph_mode,
+    in_pir_mode,
+)
 from paddle.distributed import fleet
 from paddle.nn import Layer
 from paddle.optimizer import Optimizer
+
+
+def is_tensor(tensor):
+    if in_dygraph_mode():
+        return isinstance(tensor, paddle.Tensor)
+    elif in_pir_mode():
+        return isinstance(tensor, pir.Value)
+    else:
+        raise RuntimeError(
+            "PipelineParallel are only supported in dynamic or pir mode."
+        )
 
 
 class ParallelOptimizer:
@@ -25,11 +43,24 @@ class ParallelOptimizer:
 
         if isinstance(optimizer, ParallelOptimizer):
             self.optimizer = optimizer.optimizer
-            self.level = optimizer.level
+            if level is None:
+                self.level = optimizer.level
+            else:
+                if isinstance(level, int):
+                    level = str(level)
+                assert level in ("0", "1", "2", "3", None)
+                if optimizer.level is not None:
+                    assert (
+                        level == optimizer.level
+                    ), f"The level passed in is not identical with previous level. Current level is {level}, previous level is {optimizer.level}"
+                self.level = level
         else:
             assert isinstance(optimizer, Optimizer)
             self.optimizer = optimizer
-            assert level in ("os", "os_g", "p_g_os", None)
+            if isinstance(level, int):
+                level = str(level)
+            assert level in ("0", "1", "2", "3", None)
+            # level=0 and level=None are all mean pure dp
             self.level = level
 
         self.is_initialized = False
@@ -40,18 +71,23 @@ class ParallelOptimizer:
             return self.optimizer
         # 1.replace optimizer parameters
         self.optimizer._parameter_list = parallelized_parameters
-
+        if isinstance(parallelized_parameters[0], dict):
+            self.optimizer._param_groups = []
+            for param_group in self.parallelized_parameters:
+                self.optimizer._add_param_group(param_group.copy())
+        else:
+            self.optimizer._param_groups = self.optimizer._parameter_list
         # 2.wrap with shard_optimizer
         mesh = fleet.auto.get_mesh()
-        if self.level == "os":
+        if self.level == "1":
             self.optimizer = dist.shard_optimizer(
                 self.optimizer, dist.ShardingStage1(mesh)
             )
-        elif self.level == "os_g":
+        elif self.level == "2":
             self.optimizer = dist.shard_optimizer(
                 self.optimizer, dist.ShardingStage2(mesh)
             )
-        elif self.level == "p_g_os":
+        elif self.level == "3":
             self.optimizer = dist.shard_optimizer(
                 self.optimizer, dist.ShardingStage3(mesh)
             )
@@ -110,7 +146,12 @@ class ParallelModel:
 
 
 def parallelize_model_and_optimizer(model, optimizer=None):
-    assert isinstance(model, ParallelModel)
+    if not isinstance(model, ParallelModel):
+        assert not isinstance(optimizer, ParallelOptimizer)
+        logging.warning(
+            "The method `parallelize_model_and_optimizer` won't do anything since the model is not parallelized."
+        )
+        return model, optimizer
     parallelized_model = model.parallelize_model()
     parallelized_optimizer = None
     if optimizer is not None:
