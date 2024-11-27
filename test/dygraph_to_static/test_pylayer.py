@@ -510,15 +510,8 @@ class TestPyLayerWithContext(TestPyLayerBase):
 
         self.run_in_pir = False
         self._run_and_compare(input1, input2)
-
-        # TODO(MarioLulab): pylayer_op.backward have not supported return `None` yet. Will be supported soon.
-        with self.assertRaises(Exception) as e:
-            self.run_in_pir = True
-            self._run_and_compare(input1, input2)
-        self.assertTrue(
-            "pylayer_op.backward have not supported return `None` yet. Will be supported soon."
-            in str(e.exception)
-        )
+        self.run_in_pir = True
+        self._run_and_compare(input1, input2)
 
     def test_simple_pylayer_return_none(self):
         @paddle.jit.to_static(full_graph=True)

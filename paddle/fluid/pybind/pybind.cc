@@ -756,9 +756,11 @@ static std::vector<std::vector<pir::Value>> GenerateBackwardBlockForPyLayerOp(
   // 1. construct pylayer grad op
   VLOG(6) << "Prepare Outputs for pylayer_grad";
   std::vector<pir::Type> output_types;
-  // NOTE: the last input of pylayer op is create_stack op's output
-  // whose stop_gradient is always True
-  for (size_t i = 0; i < inputs_.size() - 1; ++i) {
+  // NOTE: the last input of pylayer op is create_stack when called
+  // save_for_backward, whose stop_gradient is always True
+  int aux_bias =
+      inputs_[inputs_.size() - 1][0].type().isa<pir::InletType>() ? 1 : 0;
+  for (size_t i = 0; i < inputs_.size() - aux_bias; ++i) {
     output_types.push_back(inputs_[i][0].type());
   }
 
