@@ -108,7 +108,6 @@ class cus_tanh_2(PyLayer):
 class cus_tanh_3(PyLayer):
     @staticmethod
     def forward(ctx, x1, x2, func1, func2=paddle.square):
-        ctx.func = func2
         y1 = func1(x1)
         y2 = func1(x2)
         ctx.save_for_backward(y1, y2)
@@ -117,7 +116,7 @@ class cus_tanh_3(PyLayer):
     @staticmethod
     def backward(ctx, dy1, dy2):
         y1, y2 = ctx.saved_tensor()
-        re1 = dy1 * (1 - ctx.func(y1))
+        re1 = dy1 * (1 - paddle.square(y1))
         re2 = dy2 * (1 - paddle.square(y2))
         return re1, None
 
