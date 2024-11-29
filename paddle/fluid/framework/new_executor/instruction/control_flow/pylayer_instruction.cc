@@ -62,9 +62,6 @@ PyLayerInstruction::PyLayerInstruction(
     if (pylayer_op.result(i) && pylayer_op.result(i).type()) {
       output_vars_.push_back(value_exec_info->GetScope()->GetVar(
           value_exec_info->GetValue2VarName().at(pylayer_op.result(i))));
-    } else {
-      std::cout << "Attention:: output var no: " << i << " is null"
-                << std::endl;
     }
   }
   VLOG(6) << "finish process output_vars";
