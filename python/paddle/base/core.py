@@ -264,6 +264,11 @@ if platform.system().lower() == 'linux':
             sys.stderr.write('Error: Can not preload libgomp.so')
 
 try:
+    if sys.platform == "win32" and sys.maxsize.bit_length() == 31:
+        sys.stderr.write(
+            "32-bit Windows Python runtime is not supported. Please switch to 64-bit Python."
+        )
+        sys.exit(-1)
     from . import libpaddle
 
     if avx_supported() and not libpaddle.is_compiled_with_avx():
