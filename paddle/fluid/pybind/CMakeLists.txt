@@ -116,7 +116,6 @@ set(PYBIND_SRCS
     pir.cc
     pir_utils.cc
     graph.cc
-    bind_fleet_executor.cc
     reader_py.cc
     protobuf.cc
     exception.cc
@@ -136,7 +135,6 @@ set(PYBIND_SRCS
     communication.cc
     cuda_streams_py.cc
     custom_device_py.cc
-    xpu_streams_py.cc
     jit.cc
     sot/eval_frame_tools.cc
     sot/cpython_internals.c
@@ -151,11 +149,13 @@ if(NOT WIN32)
   set(PYBIND_SRCS
       ${PYBIND_SRCS}
       dist_api.cc
+      bind_fleet_executor.cc
       auto_parallel_py.cc
       fleet_wrapper_py.cc
       heter_wrapper_py.cc
       global_value_getter_setter.cc
-      ps_gpu_wrapper_py.cc)
+      ps_gpu_wrapper_py.cc
+      xpu_streams_py.cc)
 endif()
 #endif
 
