@@ -1,5 +1,7 @@
 add_subdirectory(platform)
-add_subdirectory(distributed)
+if(NOT WIN32)
+  add_subdirectory(distributed)
+endif()
 add_subdirectory(framework)
 add_subdirectory(imperative)
 add_subdirectory(operators)

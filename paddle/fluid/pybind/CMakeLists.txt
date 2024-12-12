@@ -44,9 +44,10 @@ set(PYBIND_DEPS
     fluid_jit
     prim_utils
     detail_op_handle
-    type_info
-    auto_parallel)
-
+    type_info)
+if(NOT WIN32)
+  list(APPEND PYBIND_DEPS auto_parallel)
+endif()
 if(WITH_GPU)
   list(APPEND PYBIND_DEPS gpu_event_timer)
 endif()
@@ -124,10 +125,6 @@ set(PYBIND_SRCS
     tensor.cc
     place.cc
     const_value.cc
-    global_value_getter_setter.cc
-    fleet_wrapper_py.cc
-    heter_wrapper_py.cc
-    ps_gpu_wrapper_py.cc
     gloo_wrapper_py.cc
     box_helper_py.cc
     metrics_py.cc
@@ -141,7 +138,6 @@ set(PYBIND_SRCS
     custom_device_py.cc
     xpu_streams_py.cc
     jit.cc
-    auto_parallel_py.cc
     sot/eval_frame_tools.cc
     sot/cpython_internals.c
     sot/frame_proxy.c
@@ -151,7 +147,16 @@ set(PYBIND_SRCS
     python_callable_registry.cc)
 
 #ifdef PADDLE_WITH_DISTRIBUTE
-set(PYBIND_SRCS ${PYBIND_SRCS} dist_api.cc)
+if(NOT WIN32)
+  set(PYBIND_SRCS
+      ${PYBIND_SRCS}
+      dist_api.cc
+      auto_parallel_py.cc
+      fleet_wrapper_py.cc
+      heter_wrapper_py.cc
+      global_value_getter_setter.cc
+      ps_gpu_wrapper_py.cc)
+endif()
 #endif
 
 if(NOT WITH_SHARED_IR)
@@ -189,7 +194,9 @@ if(WITH_PYTHON)
     set_source_files_properties(
       distributed_py.cc PROPERTIES COMPILE_FLAGS ${DISTRIBUTE_COMPILE_FLAGS})
   endif()
-  set(PYBIND_SRCS ${PYBIND_SRCS} distributed_py.cc)
+  if(NOT WIN32)
+    set(PYBIND_SRCS ${PYBIND_SRCS} distributed_py.cc)
+  endif()
 endif()
 set(PYBIND_DEPS ${PYBIND_DEPS} processgroup_comm_utils)
 
