@@ -56,7 +56,7 @@ wmic process where name="lib.exe" call terminate 2>NUL
 wmic process where name="python.exe" call terminate 2>NUL
 
 rem variable to control building process
-if not defined GENERATOR set GENERATOR="Visual Studio 15 2017 Win64"
+set GENERATOR="Visual Studio 16 2019 Win64"
 if not defined WITH_TENSORRT set WITH_TENSORRT=ON
 if not defined TENSORRT_ROOT set TENSORRT_ROOT=D:/TensorRT
 if not defined WITH_GPU set WITH_GPU=ON
