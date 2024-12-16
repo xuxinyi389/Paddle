@@ -38,6 +38,8 @@
 
 #include "paddle/fluid/pybind/python_callable_registry.h"
 
+#include "paddle/fluid/framework/new_executor/instruction/instruction_util.h"
+
 namespace py = pybind11;
 using paddle::dialect::ApiBuilder;
 using paddle::dialect::AssertOp;
@@ -94,6 +96,111 @@ void BindPyLayerOp(py::module* m) {
   m->def("build_pylayer_op", [](const std::vector<Value>& inputs) {
     return ApiBuilder::Instance().GetBuilder()->Build<PyLayerOp>(
         inputs, std::vector<Type>{}, -1);
+  });
+  m->def("updata_pylayer_op", [](pir::Program* program) -> void {
+    std::unordered_set<pir::Value> global_block_inner_inputs;
+    global_block_inner_inputs =
+        paddle::framework::GetInternalInputs(program->block());
+
+    for (auto iter = program->block()->begin();
+         iter != program->block()->end();) {
+      pir::Operation* op_item = &(*iter);
+      if (op_item->isa<PyLayerOp>()) {
+        pir::Block& block = op_item->dyn_cast<PyLayerOp>().forward_block();
+        std::vector<pir::Value> input_values = op_item->operands_source();
+        std::vector<pir::Value> output_values = op_item->results();
+
+        std::unordered_set<pir::Value> inner_inputs;
+        inner_inputs = paddle::framework::GetInternalInputs(&block);
+        std::unordered_set<pir::Value> inner_outputs;
+        inner_outputs = paddle::framework::GetInternalOutputs(&block);
+
+        for (size_t arg_id = 0; arg_id < block.args_size();) {
+          if (block.arg(arg_id) && (!inner_inputs.count(block.arg(arg_id)))) {
+            block.EraseArg(arg_id);
+            continue;
+          }
+          ++arg_id;
+        }
+
+        bool need_build_new_pylayer = false;
+        std::vector<pir::Type> new_pylayer_output_types;
+        std::vector<pir::Value> new_pylayer_inputs;
+        std::vector<pir::Value> new_pylayer_yield_inputs;
+
+        for (auto value : input_values) {
+          if (value && (!inner_inputs.count(value))) {
+            need_build_new_pylayer = true;
+            continue;
+          }
+          new_pylayer_inputs.push_back(value);
+        }
+
+        std::vector<int> old_pylayer_outputs_map_to_new_pylayer_outputs_index;
+
+        if (block.back().isa<YieldOp>()) {
+          std::vector<pir::Value> yield_inputs = block.back().operands_source();
+          PADDLE_ENFORCE_EQ(yield_inputs.size(),
+                            output_values.size(),
+                            common::errors::Unimplemented(
+                                "yield_op's input size(%d) must be equal "
+                                "PyLayer's outpus's output size %d",
+                                yield_inputs.size(),
+                                output_values.size()));
+          int index = 0;
+          for (size_t i = 0; i < yield_inputs.size(); i++) {
+            if (yield_inputs[i] && (!inner_outputs.count(yield_inputs[i]))) {
+              PADDLE_ENFORCE_EQ(
+                  global_block_inner_inputs.count(output_values[i]),
+                  0,
+                  common::errors::Unimplemented(
+                      "The PyLayer's output not defined in PyLayer's block, "
+                      "but used in global block."));
+              need_build_new_pylayer = true;
+              old_pylayer_outputs_map_to_new_pylayer_outputs_index.push_back(
+                  -1);
+              continue;
+            }
+            new_pylayer_output_types.push_back(yield_inputs[i].type());
+            new_pylayer_yield_inputs.push_back(yield_inputs[i]);
+            old_pylayer_outputs_map_to_new_pylayer_outputs_index.push_back(
+                index++);
+          }
+        } else {
+          PADDLE_THROW(common::errors::Unimplemented(
+              "The last op of PyLayer block, is not yield_op, but a %s",
+              block.back().name()));
+        }
+
+        if (need_build_new_pylayer) {
+          ::pir::IrContext* ctx = ::pir::IrContext::Instance();
+          block.pop_back();
+          ::pir::Builder builder = ::pir::Builder(ctx, &block);
+          builder.SetInsertionPointToBlockEnd(&block);
+          builder.Build<YieldOp>(new_pylayer_yield_inputs);
+
+          ::pir::Builder builder2 = ::pir::Builder(ctx, program->block());
+          builder2.set_insertion_point(op_item);
+          auto new_pylayer = builder2.Build<PyLayerOp>(
+              new_pylayer_inputs,
+              op_item->dyn_cast<PyLayerOp>().forward_region().TakeBack(),
+              op_item->dyn_cast<PyLayerOp>().backward_function_id());
+          for (size_t i = 0;
+               i < old_pylayer_outputs_map_to_new_pylayer_outputs_index.size();
+               i++) {
+            if (old_pylayer_outputs_map_to_new_pylayer_outputs_index[i] != -1) {
+              output_values[i].ReplaceAllUsesWith(new_pylayer.result(
+                  old_pylayer_outputs_map_to_new_pylayer_outputs_index[i]));
+            }
+          }
+          iter = program->block()->erase(iter);
+        } else {
+          ++iter;
+        }
+      } else {
+        ++iter;
+      }
+    }
   });
   py::class_<PyLayerOp> pylayer_op(*m, "PyLayerOp", R"DOC(
     TODO(MarioLulab): Add some docs for pd_op.pylayer
