@@ -624,14 +624,14 @@ std::tuple<Tensor, Tensor> dropout_decomp(
     auto zero = full_scalar<T>(0.0, dtype_tmp, x.place());
     auto one = full_scalar<T>(1.0, dtype_tmp, x.place());
     uniform_tensor = backend::uniform<T>(
-        shape_tensor, zero, one, dtype_tmp, seed_tmp, x.place());
+        shape_tensor, zero, one, org_dtype, seed_tmp, x.place());
   } else {
     uniform_tensor = uniform<T>(
-        phi::vectorize(x.dims()), dtype_tmp, 0.0, 1.0, seed_tmp, x.place());
+        phi::vectorize(x.dims()), org_dtype, 0.0, 1.0, seed_tmp, x.place());
   }
   auto mask = cast<T>(
       greater_equal<T>(uniform_tensor,
-                       full_scalar<T>(p, dtype_tmp, uniform_tensor.place())),
+                       full_scalar<T>(p, org_dtype, uniform_tensor.place())),
       org_dtype);
   auto ones_p = full_scalar<T>(1.0 - p.to<float>(), org_dtype, x.place());
   if (upscale_in_train) {
@@ -1446,23 +1446,25 @@ Tensor diag_decomp(const Tensor& x,
   if (rank == 1) {
     std::vector<int64_t> x_dims = cast_x.shape();
     int64_t n = x_dims[0];
-    int64_t m = n + std::abs(offset);
+    int64_t abs_offset = std::abs(offset);
+    int64_t m = n + abs_offset;
 
     Tensor result =
         full<T>({m, m}, padding_value, cast_x.dtype(), cast_x.place());
-    Tensor padding = full<T>(
-        {std::abs(offset)}, padding_value, cast_x.dtype(), cast_x.place());
-
-    Tensor x_padding =
-        unsqueeze<T>(roll<T>(concat<T>({cast_x, padding}, 0), {-offset}), {1});
-    Tensor indices = unsqueeze<T>(
-        roll<T>(backend::arange<T>(0, m, 1, DataType::INT64, cast_x.place()),
-                {-offset}),
-        {1});
-
-    res = put_along_axis<T>(result, indices, x_padding, 1);
-
+    Tensor insert_value = cast_x;
+    Tensor indices = backend::arange<T>(
+        abs_offset, abs_offset + n, 1, DataType::INT64, cast_x.place());
+    if (offset >= 0) {
+      insert_value = reshape<T>(insert_value, {n, 1});
+      indices = reshape<T>(indices, {n, 1});
+      res = put_along_axis<T>(result, indices, insert_value, 1);
+    } else {
+      insert_value = reshape<T>(insert_value, {1, n});
+      indices = reshape<T>(indices, {1, n});
+      res = put_along_axis<T>(result, indices, insert_value, 0);
+    }
   } else {
+    // This is the case for 2D tensor.
     std::vector<int64_t> x_dims = cast_x.shape();
     int64_t n = x_dims[0];
     int64_t m = x_dims[1];
@@ -1471,8 +1473,13 @@ Tensor diag_decomp(const Tensor& x,
     }
     Tensor x_flat = reshape<T>(cast_x, {n * m});
     int64_t start = offset >= 0 ? offset : -offset * m;
-    Tensor indices = backend::arange<T>(
-        start, n * m, m + 1, DataType::INT64, cast_x.place());
+    int64_t num =
+        offset >= 0 ? std::min(n, m - offset) : std::min(n + offset, m);
+    int64_t stride = m + 1;
+    int64_t end = start + num * stride;
+
+    Tensor indices =
+        backend::arange<T>(start, end, stride, DataType::INT64, cast_x.place());
     res = take_along_axis<T>(x_flat, indices, 0);
   }
   return ConverToOrig<T>(res, x.dtype());

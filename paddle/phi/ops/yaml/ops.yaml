@@ -490,6 +490,16 @@
   inplace : (in_sum_1 -> out_sum_1), (in_sum_2 -> out_sum_2), (in_sum_3 -> out_sum_3), (in_num_accumulates -> out_num_accumulates), (in_old_num_accumulates -> out_old_num_accumulates), (in_num_updates -> out_num_updates)
   traits : paddle::dialect::ForwardOnlyTrait
 
+- op : barrier
+  args : (Tensor x, int ring_id=0)
+  output : Tensor(out)
+  infer_meta:
+    func : BarrierInferMeta
+    param: [x]
+  kernel :
+    func : barrier
+    param: [x]
+
 - op : batch_fc
   args : (Tensor input, Tensor w, Tensor bias)
   output : Tensor(out)
@@ -1607,6 +1617,18 @@
   backward : elu_grad
   interfaces : paddle::dialect::InferSymbolicShapeInterface
 
+- op : embedding_with_scaled_gradient
+  args : (Tensor x, Tensor weight, int64_t padding_idx=-1)
+  output : Tensor
+  infer_meta :
+    func : EmbeddingInferMeta
+    param : [x, weight, padding_idx]
+  kernel :
+    func : embedding {dense, dense -> dense}
+    param : [x, weight, padding_idx]
+    data_type : weight
+  backward : embedding_with_scaled_gradient_grad
+
 - op : empty
   args : (IntArray shape, DataType dtype=DataType::FLOAT32, Place place=CPUPlace())
   output: Tensor(out)
@@ -2481,6 +2503,7 @@
   kernel :
     func : hardsigmoid
   backward : hardsigmoid_grad
+  interfaces : paddle::dialect::InferSymbolicShapeInterface
 
 - op : hardtanh
   args : (Tensor x, float t_min=0, float t_max=24)

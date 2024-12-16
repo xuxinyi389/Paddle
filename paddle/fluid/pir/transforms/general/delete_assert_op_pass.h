@@ -13,14 +13,14 @@
 // limitations under the License.
 
 #pragma once
-#include "paddle/cinn/ir/ir.h"
 
-namespace cinn {
-namespace optim {
+#include <memory>
+#include "paddle/pir/include/core/dll_decl.h"
 
-/*
- * Do fusion with the adjaccnt if-block.
- */
-void IfFusion(Expr *expr);
-}  // namespace optim
-}  // namespace cinn
+namespace pir {
+
+class Pass;
+
+IR_API std::unique_ptr<Pass> CreateDeleteAssertOpPass();
+
+}  // namespace pir

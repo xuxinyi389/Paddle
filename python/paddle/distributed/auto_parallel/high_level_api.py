@@ -291,9 +291,11 @@ def to_distributed(
             sequence_parallel indicates whether to use sequence parallel. Default: False.
 
     Returns:
-        model: The model in dygraph mode but contain distributed attributes.
-        optimizer: The optimizer for training and may be sharded states.
-        dataloader: The dataloader can be used in distributed training.
+        model. The model in dygraph mode but contain distributed attributes.
+
+        optimizer. The optimizer for training and may be sharded states.
+
+        dataloader. The dataloader can be used in distributed training.
 
     Examples:
         .. code-block:: python
@@ -779,7 +781,9 @@ def to_distributed(
     with_pp = True if "pp" in mesh.dim_names else False
     with_mp = True if "mp" in mesh.dim_names else False
     with_dp = True if "dp" in mesh.dim_names else False
-    with_sp = True if config.sequence_parallel else False
+    with_sp = (
+        True if "mp" in mesh.dim_names and config.sequence_parallel else False
+    )
 
     # step 3: processing tensor parallel if necessary, according to the optimal parallel strategies shard weight tensors in decoder blocks
     if with_mp:
