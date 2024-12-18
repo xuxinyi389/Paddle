@@ -250,10 +250,16 @@ void PyLayerOp::UpdateInputOutput() {
     PADDLE_ENFORCE_EQ(
         yield_inputs.size(),
         output_values.size(),
-        common::errors::Unimplemented("yield_op's input size(%d) must be equal "
-                                      "PyLayer's outpus's output size %d",
-                                      yield_inputs.size(),
-                                      output_values.size()));
+        common::errors::Unimplemented(
+            "YieldOp's input size(%d) must be equal with "
+            "PyLayer's outpus's output size %d. If Pass modify PyLayer's "
+            "block, the Pass should not modify YieldOp, because YieldOp must "
+            "updata with PyLayer outputs together. Otherwise, when updating "
+            "PyLayer outputs, the mapping relationship between the new PyLayer "
+            "and the old PyLayer outputs cannot be known. Therefore, we can't "
+            "use ReplaceAllUsesWith update Value of PyLayer outputs.",
+            yield_inputs.size(),
+            output_values.size()));
     int index = 0;
     for (size_t i = 0; i < yield_inputs.size(); i++) {
       if (yield_inputs[i] && (!inner_outputs.count(yield_inputs[i]))) {
