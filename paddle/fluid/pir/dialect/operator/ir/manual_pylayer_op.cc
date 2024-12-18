@@ -272,9 +272,11 @@ void PyLayerOp::UpdateInputOutput() {
       old_pylayer_outputs_map_to_new_pylayer_outputs_index.push_back(index++);
     }
   } else {
-    PADDLE_THROW(common::errors::Unimplemented(
-        "The last op of PyLayer block, is not yield_op, but a %s",
-        block.back().name()));
+    if (!output_values.empty()) {
+      PADDLE_THROW(common::errors::Unimplemented(
+          "The last op of PyLayer block, is not yield_op, but a %s",
+          block.back().name()));
+    }
   }
 
   if (need_build_new_pylayer) {
