@@ -405,6 +405,24 @@ def replace_moe_sub_mesh_tensors(op):
         )
     )
 
+    # update pylayer op by removing the unused outputs
+    def update_pylayer_output(trival_value):
+        define_op = trival_value.get_defining_op()
+        if define_op.get_parent_block().parent_op.name() != "pd_op.pylayer":
+            return
+        paddle.pir.set_insertion_point(define_op)
+        fake_value = paddle.static.data(
+            name="_fake_pylayer_out",
+            shape=trival_value.shape,
+            dtype=trival_value.dtype,
+        )
+        fake_value.set_type(trival_value.type())
+        trival_value.replace_all_uses_with(fake_value)
+
+    for val in op.results():
+        if not val.use_empty():
+            update_pylayer_output(val)
+
     assert all(val.use_empty() for val in op.results())
     op.erase()
 
@@ -420,8 +438,7 @@ class RemovePasses:
     @staticmethod
     def remove_other_rank_op_pass(dist_program):
         # pruning op and value not belong to cur rank
-        def handle_op(block):
-            # pruning op and value not belong to cur rank
+        def prune_op(block):
             cur_rank = paddle.distributed.get_rank()
             for op in block.ops[::-1]:
                 if op.name() == "dist_op.moe_sub_mesh_tensors":
@@ -438,8 +455,11 @@ class RemovePasses:
                 elif op.name() == "cf.yield":
                     continue
                 elif op.name() == "pd_op.pylayer":
-                    for pylayer_block in op.blocks().reverse():
-                        handle_op(pylayer_block)
+                    for pylayer_block in list(op.blocks())[::-1]:
+                        prune_op(pylayer_block)
+                    # update pylayer op's inputs
+                    op.as_pylayer_op().update_input_and_output()
+                    continue
                 elif op.name() in partition_skip_op_list:
                     can_delete = True
                     for val in op.results():
@@ -457,7 +477,7 @@ class RemovePasses:
                     ).use_empty(), f'There should not have useful dist.reshard op in remove_other_rank_op_pass. but find : {op}'
                     op.erase()
 
-        handle_op(dist_program.global_block())
+        prune_op(dist_program.global_block())
 
         # merge pd.data ops for
         lr_ops = []

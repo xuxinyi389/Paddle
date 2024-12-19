@@ -254,7 +254,7 @@ void PyLayerOp::UpdateInputOutput() {
             "YieldOp's input size(%d) must be equal with "
             "PyLayer's outpus's output size %d. If Pass modify PyLayer's "
             "block, the Pass should not modify YieldOp, because YieldOp must "
-            "updata with PyLayer outputs together. Otherwise, when updating "
+            "update with PyLayer outputs together. Otherwise, when updating "
             "PyLayer outputs, the mapping relationship between the new PyLayer "
             "and the old PyLayer outputs cannot be known. Therefore, we can't "
             "use ReplaceAllUsesWith update Value of PyLayer outputs.",
