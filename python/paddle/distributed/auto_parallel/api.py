@@ -372,7 +372,7 @@ class _moe_global_mesh_tensor(PyLayer):
         mesh,
         placements,
         global_dims,
-        idx=-1,
+        idx=None,
     ):
         # NOTE: _local_value/Paddle.Tensor is only supported in dynamic mode
         if paddle.in_dynamic_mode():

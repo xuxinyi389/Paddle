@@ -43,6 +43,7 @@ from .utils import (
     get_pp_stage_by_process_mesh,
     get_sub_process_mesh_by_program,
     partition_skip_op_list,
+    update_pylayer_output,
 )
 
 _logger = get_logger(
@@ -404,25 +405,9 @@ def replace_moe_sub_mesh_tensors(op):
             [op_dist_attr.result(out_idx).as_tensor_dist_attr()],
         )
     )
-
-    # update pylayer op by removing the unused outputs
-    def update_pylayer_output(trival_value):
-        define_op = trival_value.get_defining_op()
-        if define_op.get_parent_block().parent_op.name() != "pd_op.pylayer":
-            return
-        paddle.pir.set_insertion_point(define_op)
-        fake_value = paddle.static.data(
-            name="_fake_pylayer_out",
-            shape=trival_value.shape,
-            dtype=trival_value.dtype,
-        )
-        fake_value.set_type(trival_value.type())
-        trival_value.replace_all_uses_with(fake_value)
-
     for val in op.results():
         if not val.use_empty():
             update_pylayer_output(val)
-
     assert all(val.use_empty() for val in op.results())
     op.erase()
 

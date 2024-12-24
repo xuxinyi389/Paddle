@@ -2748,3 +2748,38 @@ def split_mesh(global_mesh: ProcessMesh, sub_mesh_dim: int):
         sub_mesh_list.append(ProcessMesh(sub_process_ids))
 
     return sub_mesh_list
+
+
+# update pylayer op by removing the unused outputs
+def update_pylayer_output(trival_value):
+    """
+    This function is used to update the subblock within a pylayer operation,
+    modifying the output argument as needed.
+
+        (1) Assume the original pylayer op:
+            (%1, %2) = "pd_op.pylayer" (%0) {
+                () = "cf.tuple_pop" [id:1]
+                (%3, %4) = "dist_op.xxx" [id:2]
+                () = "cf.yield" [id:3] (%3, %4)
+            }
+        (2) The updated pylayer op after remove the useless output of yield:
+            (%1) = "pd_op.pylayer" (%0) {
+                () = "cf.tuple_pop" [id:1]
+                (%3) = "dist_op.xxx" [id:2]
+                () = "cf.yield" [id:3] (%3)
+            }
+
+    Args:
+        trivale_value(pir::Value): The output argument of the pylayer op to be updated.
+    """
+    define_op = trival_value.get_defining_op()
+    if define_op.get_parent_block().parent_op.name() != "pd_op.pylayer":
+        return
+    paddle.pir.set_insertion_point(define_op)
+    fake_value = paddle.static.data(
+        name="_fake_pylayer_out",
+        shape=trival_value.shape,
+        dtype=trival_value.dtype,
+    )
+    fake_value.set_type(trival_value.type())
+    trival_value.replace_all_uses_with(fake_value)
