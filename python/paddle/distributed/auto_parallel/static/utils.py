@@ -2750,19 +2750,24 @@ def split_mesh(global_mesh: ProcessMesh, sub_mesh_dim: int):
     return sub_mesh_list
 
 
-# update pylayer op by removing the unused outputs
+# Note: This function is intended for internal use within the PaddlePaddle framework for optimizing computational graphs.
 def update_pylayer_output(trival_value):
     """
-    This function is used to update the subblock within a pylayer operation,
-    modifying the output argument as needed.
+    Update the subblock within a pylayer operation by modifying its output argument.
 
-        (1) Assume the original pylayer op:
+    This function optimizes a pylayer operation by removing unnecessary outputs from the 'cf.yield' step.
+
+    Args:
+        trivale_value (pir::Value): The output argument of the pylayer operation to be modified.
+
+    Example:
+        (1) Original pylayer operation:
             (%1, %2) = "pd_op.pylayer" (%0) {
                 () = "cf.tuple_pop" [id:1]
                 (%3, %4) = "dist_op.xxx" [id:2]
                 () = "cf.yield" [id:3] (%3, %4)
             }
-        (2) The updated pylayer op after remove the useless output of yield:
+        (2) After calling `update_pylayer_output(%4)`, the updated pylayer operation removes the unused output:
             (%1) = "pd_op.pylayer" (%0) {
                 () = "cf.tuple_pop" [id:1]
                 (%3) = "dist_op.xxx" [id:2]
