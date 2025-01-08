@@ -87,7 +87,7 @@ def get_rank_to_files(
     state_dict,
     process_group,
     use_dist,
-    mw_name_compatibility,
+    mw_name_compatibility=True,
 ):
     """
     Get the mapping of rank to its accessible files.
