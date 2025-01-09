@@ -185,6 +185,7 @@ def _modify_mw_name_for_compatibility(
     """
     compatibility_set = set()
     mw_name_compatibility_mapping = {}
+    compatibility_key = None
     for missing_key in missing_keys:
         parts = missing_key.split(".")
         # Determine compatibility key based on naming style
