@@ -125,7 +125,7 @@ def get_rank_to_files(
             "No necessary data files found in the checkpoint directory. Please check the metadata."
         )
         missing_keys = set(state_dict.keys())
-        return {}, missing_keys
+        return {}, missing_keys, mw_name_compatibility_mapping
 
     # allgather all accessible files
     global_data_files = []
