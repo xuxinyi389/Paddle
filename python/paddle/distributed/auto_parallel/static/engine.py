@@ -34,7 +34,7 @@ from paddle.distributed.fleet.meta_optimizers.common import OpRole
 from paddle.distributed.passes.pass_base import new_pass
 from paddle.distributed.passes.pass_utils import (
     _split_program_into_forward_backward_optimize,
-    set_pir_skip_gc_vars,
+    set_skip_gc_vars,
 )
 from paddle.framework import (
     IrGraph,
@@ -335,34 +335,47 @@ class Engine:
             batch_sampler = dataloader.batch_sampler
         else:
             batch_sampler = dataloader._dataloader.batch_sampler
-
         if hasattr(batch_sampler, "set_epoch"):
             # Get data from DataLoader iterator directly may affect data generation randomness
             # of BatchSampler when `Shuffle=True`. It may cause difference of data feeding
             # between dynamic and to_static mode.
             batch_sampler.set_epoch(0)
-
         if isinstance(data, dict):
-            data = tuple(data.values())
-            if len(data) != 2:
+            data = list(data.values())
+            if len(data) >= 2:
+                labels = data.pop()
+                inputs = data
+            else:
                 raise ValueError(
-                    f"Data should be a dict with two keys, but received {len(data)}."
+                    f"Data should be a dict at least two keys, but received {len(data)}."
                 )
-            inputs, labels = data
         elif isinstance(data, (list, tuple)):
-            if len(data) != 2:
+            if len(data) >= 2:
+                labels = data.pop()
+                inputs = data
+            else:
                 raise ValueError(
-                    f"Data should be a list or tuple with two elements, but received {len(data)}."
+                    f"Data should be a dict or list at list two element, but received {len(data)}."
                 )
-            inputs, labels = data
         else:
             raise TypeError(
                 f"Data should be a dict or list, but received {type(data)}."
             )
-
-        inputs = auto_utils.to_list(inputs)
+        if not isinstance(inputs, (list, tuple)):
+            inputs = auto_utils.to_list(inputs)
         labels = auto_utils.to_list(labels)
 
+        def flatten_list(nested_list):
+            flat_list = []
+            for item in nested_list:
+                if isinstance(item, (list, tuple)):
+                    flat_list.extend(flatten_list(item))
+                else:
+                    flat_list.append(item)
+            return flat_list
+
+        # flatten [[1,2],3] - > [1,2,3]
+        inputs = flatten_list(inputs)
         if inputs is not None:
             for i, item in enumerate(inputs):
                 assert item is not None, "Receive None input."
@@ -804,7 +817,6 @@ class Engine:
 
         # re-run apply_mix2dist_pass to dist accumulator.
         apply_mix2dist_pass(dist_program)
-
         if mode == "train" and self._strategy.recompute.enable:
             config = copy.deepcopy(self._strategy.recompute.to_dict())
             auto_parallel_recompute_pir_pass = new_pass(
@@ -944,7 +956,7 @@ class Engine:
             opt_job.set_micro_batch_id(0)
             jobs.append(opt_job)
 
-            type_to_program = set_pir_skip_gc_vars(
+            type_to_program = set_skip_gc_vars(
                 self._strategy.gradient_merge.k_steps,
                 job_types,
                 sub_programs,
@@ -1339,12 +1351,12 @@ class Engine:
             )
 
         if self._in_pir_mode:
-            # FIXME(ljz) avoid shared same tensro more than once in different mode
+            # FIXME(ljz) avoid shared same tensor more than once in different mode
             if mode != "train":
                 return
             # TODO(2024-Q2)
             # 1. unify random control
-            # 2. initilization of non-parameter buffer
+            # 2. initialization of non-parameter buffer
             # 3. run startup program for pir
             # 4. lazy init adaption
             # 5. amp init adaption
@@ -1513,7 +1525,7 @@ class Engine:
     # distributed training combined with prim mechanism (prim is behind of distributed)
     # for local main subprogram after distributed partition,
     # mark _need_decomp=True to tag this program needs to be decomposed
-    # get _grad_var_to_var from distributed context and set it to main program for futher decomposing in static executor
+    # get _grad_var_to_var from distributed context and set it to main program for further decomposing in static executor
     def _mark_prim(self, mode):
         if os.getenv("FLAGS_enable_prim_after_distribute") in [
             'True',

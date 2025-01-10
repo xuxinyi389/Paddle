@@ -336,6 +336,7 @@ def shard_tensor(
                 placements=placements,
                 **tensor.__dict__,
             )
+            dist_param.stop_gradient = tensor.stop_gradient
             if tensor._init_func is not None:
                 origin_init_func = tensor._init_func
                 dist_param.set_init_func(
@@ -722,48 +723,34 @@ def moe_sub_mesh_tensors(
 
 
 def dtensor_from_local(local_tensor, mesh, placements):
-    # assume the each rank has the same tensor shape for now, just use the local shape to calculate the global shape
-    global_dims = list(local_tensor.shape)
-    for idx, placement in enumerate(placements):
-        if placement.is_shard():
-            shard_dim = placement.get_dim()
-            local_dim_size = global_dims[shard_dim]
-            global_dims[shard_dim] = local_dim_size * mesh.shape[idx]
-
     if paddle.in_dynamic_mode():
-        place = paddle.framework._current_expected_place()
-        place = paddle.framework._get_paddle_place(place)
+        if local_tensor.is_dist() is True:
+            raise ValueError("The input should be a local tensor.")
 
-        return paddle.Tensor(
-            local_tensor,
-            dims=global_dims,
-            process_mesh=mesh,
-            placements=placements,
-            place=place,
+        return paddle.base.core.dtensor_from_local(
+            local_tensor, mesh, placements
         )
 
     # TODO Adopt Mix2Dist Pass to allow the program could be executed actually.
     elif paddle.framework.in_pir_mode():
-        assert isinstance(
-            local_tensor, (type(None), pir.Value)
-        ), "input tensor is not pir value."
-        assert (
-            local_tensor.is_dense_tensor_type()
-        ), "dtensor_from_local() are only supported dense tensor type right."
-        sharding_specs = get_shard_spec(mesh, placements, local_tensor.ndim)
-        dims_mapping = convert_to_dims_mapping(sharding_specs, mesh)
-        local_shape = local_tensor.shape
-        global_tensor_type = paddle.pir.create_shaped_type(
-            local_tensor.type(), global_dims
-        )
-        dist_dense_tensor_type = paddle.base.libpaddle.pir.create_dist_dense_tensor_type_by_dense_tensor(
-            global_tensor_type, local_shape, mesh, dims_mapping
-        )
-        local_tensor.set_type(dist_dense_tensor_type)
-        return local_tensor
+        return paddle._C_ops.dtensor_from_local(local_tensor, mesh, placements)
     else:
         raise RuntimeError(
             "dtensor_from_local() are only supported in dynamic or pir mode."
+        )
+
+
+def dtensor_to_local(dist_tensor):
+    if paddle.in_dynamic_mode():
+        if dist_tensor.is_dist() is False:
+            raise ValueError("The input should be a distributed tensor.")
+
+        return paddle.base.core.dtensor_to_local(dist_tensor)
+    elif paddle.framework.in_pir_mode():
+        return paddle._C_ops.dtensor_to_local(dist_tensor)
+    else:
+        raise RuntimeError(
+            "dtensor_to_local() are only supported in dynamic or pir mode."
         )
 
 
@@ -1170,6 +1157,10 @@ class _ShardOptimizer(Optimizer):
             accumulator = self._inner_opt._accumulators[key][target_name]
             if accumulator.is_dist() and not isinstance(accumulator, pir.Value):
                 continue
+
+            if paddle.in_dynamic_mode():
+                origin_accumulator_name = accumulator.name
+
             if self._shard_fn is not None:
                 self._inner_opt._accumulators[key][target_name] = (
                     self._shard_fn(key, param, accumulator)
@@ -1193,12 +1184,10 @@ class _ShardOptimizer(Optimizer):
                             placements=placements,
                         )
                     )
-            if not isinstance(
-                self._inner_opt._accumulators[key][target_name], pir.Value
-            ):
-                self._inner_opt._accumulators[key][target_name].name = (
-                    target_name + "_" + key
-                )
+            if paddle.in_dynamic_mode():
+                self._inner_opt._accumulators[key][
+                    target_name
+                ].name = origin_accumulator_name
 
     def _reset_placements(self, param):
         if param.is_dist() and isinstance(
@@ -2332,7 +2321,7 @@ class DistModel:
 
         if (
             strategy
-            and strategy.sharding.enable_stage1_tensor_fusion
+            and strategy.sharding.enable_tensor_fusion
             and isinstance(optimizer, _ShardOptimizer)
             and use_pir_api()
         ):
@@ -2340,11 +2329,16 @@ class DistModel:
                 "The shard_fn should be ShardingStage1 "
                 "when stage1 tensor fusion is enabled."
             )
-            shard_fn = optimizer._shard_fn
-            inner_opt = optimizer._inner_opt
-            optimizer = ShardingOptimizerStage1(
-                inner_opt, shard_fn, self._inner_strategy
-            )
+            if isinstance(optimizer._shard_fn, ShardingStage1):
+                shard_fn = optimizer._shard_fn
+                inner_opt = optimizer._inner_opt
+                optimizer = ShardingOptimizerStage1(
+                    inner_opt, shard_fn, self._inner_strategy
+                )
+            else:
+                logging.warning(
+                    "Sharding tensor fusion only support ShardingStage1 now."
+                )
 
         self._engine = Engine(
             layer, loss, optimizer, metrics, strategy=self._inner_strategy
@@ -2734,15 +2728,15 @@ class DistModel:
         # When tensor fusion is enabled, optimizer parameters can become unbalanced in
         # sharding. We need to either balance them or rename unbalanced parameters for each
         # rank and directly load them.
-        enable_stage1_tensor_fusion = (
-            self._inner_strategy.sharding.enable_stage1_tensor_fusion
+        enable_tensor_fusion = (
+            self._inner_strategy.sharding.enable_tensor_fusion
             if self._inner_strategy
             else False
         )
         if (
             self._engine._optimizer is not None
             and load_sharded_model
-            and enable_stage1_tensor_fusion
+            and enable_tensor_fusion
         ):
             optimizer = self._engine._optimizer
             if isinstance(
@@ -2841,12 +2835,12 @@ class DistModel:
         # to include tensor-fusion parameters before calling set_state_dict,
         # as stored parameters are processed as if tensor-fusion is not applied
         # or we can choose to load the unblanced parameters directly.
-        enable_stage1_tensor_fusion = (
-            self._inner_strategy.sharding.enable_stage1_tensor_fusion
+        enable_tensor_fusion = (
+            self._inner_strategy.sharding.enable_tensor_fusion
             if self._inner_strategy
             else False
         )
-        if self._engine._optimizer is not None and enable_stage1_tensor_fusion:
+        if self._engine._optimizer is not None and enable_tensor_fusion:
             optimizer = self._engine._optimizer
             if isinstance(
                 optimizer,
@@ -3248,8 +3242,6 @@ class ShardDataloader:
             raise ValueError(
                 f"process_id {process_id} is in more than one mesh, the meshes are {self._meshes}"
             )
-        if input_keys is not None:
-            assert len(input_keys) == 2, "input_keys lengths must be 2"
 
         self._all_inputs_in_one_mesh = len(self._meshes) == 1
         self._input_keys = input_keys
@@ -3438,14 +3430,14 @@ class ShardDataloader:
                     )
             return dist_batch_data
         elif isinstance(batch_data, dict):
-            if self._all_inputs_in_one_mesh is False:
-                assert len(self._input_keys) == len(self._meshes)
-            dist_batch_data = {}
             input_keys = (
                 batch_data.keys()
                 if self._input_keys is None
                 else self._input_keys
             )
+            if self._all_inputs_in_one_mesh is False:
+                assert len(input_keys) == len(self._meshes)
+            dist_batch_data = {}
             for i, key in enumerate(input_keys):
                 input_data = batch_data[key]
                 if isinstance(input_data, (list, tuple)):

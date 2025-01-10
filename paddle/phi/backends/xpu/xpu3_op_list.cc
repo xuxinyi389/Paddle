@@ -22,6 +22,10 @@ namespace xpu {
 XPUOpMap& get_kl3_ops() {
   // KL3支持的op，通过op_name, data_type, place来索引
   static XPUOpMap s_xpu3_kernels{
+      {"acos",
+       XPUKernelSet({phi::DataType::FLOAT32,
+                     phi::DataType::FLOAT16,
+                     phi::DataType::BFLOAT16})},
       {"add_act_xpu",
        XPUKernelSet({phi::DataType::FLOAT32, phi::DataType::FLOAT16})},
       {"add_layernorm_xpu",
@@ -424,7 +428,10 @@ XPUOpMap& get_kl3_ops() {
                      phi::DataType::BFLOAT16,
                      phi::DataType::FLOAT32,
                      phi::DataType::BOOL})},
-      {"exp_grad", XPUKernelSet({phi::DataType::FLOAT32})},
+      {"exp_grad",
+       XPUKernelSet({phi::DataType::FLOAT32,
+                     phi::DataType::FLOAT16,
+                     phi::DataType::BFLOAT16})},
       {"exp",
        XPUKernelSet({phi::DataType::FLOAT32,
                      phi::DataType::FLOAT16,
@@ -1298,7 +1305,10 @@ XPUOpMap& get_kl3_ops() {
                      phi::DataType::FLOAT16,
                      phi::DataType::BFLOAT16})},
       {"tanh_grad",
-       XPUKernelSet({phi::DataType::FLOAT32, phi::DataType::FLOAT16})},
+       XPUKernelSet({phi::DataType::FLOAT32,
+                     phi::DataType::FLOAT16,
+                     phi::DataType::BFLOAT16})},
+      {"tan", XPUKernelSet({phi::DataType::FLOAT32, phi::DataType::FLOAT16})},
       {"tanh", XPUKernelSet({phi::DataType::FLOAT32, phi::DataType::FLOAT16})},
       {"temporal_shift", XPUKernelSet({phi::DataType::FLOAT32})},
       {"temporal_shift_grad", XPUKernelSet({phi::DataType::FLOAT32})},
@@ -1449,6 +1459,8 @@ XPUOpMap& get_kl3_ops() {
                      phi::DataType::INT32,
                      phi::DataType::FLOAT16,
                      phi::DataType::FLOAT32})},
+      {"variable_length_memory_efficient_attention",
+       XPUKernelSet({phi::DataType::FLOAT32, phi::DataType::FLOAT16})},
       {"warpctc_grad", XPUKernelSet({phi::DataType::FLOAT32})},
       {"warpctc", XPUKernelSet({phi::DataType::FLOAT32})},
       {"where_index",
@@ -1485,7 +1497,8 @@ XPUOpMap& get_kl3_ops() {
                      phi::DataType::INT32,
                      phi::DataType::INT64})},
       {"randint", XPUKernelSet({phi::DataType::INT32, phi::DataType::INT64})},
-      {"group_norm", XPUKernelSet({phi::DataType::FLOAT32})},
+      {"group_norm",
+       XPUKernelSet({phi::DataType::FLOAT32, phi::DataType::FLOAT16})},
       {"group_norm_grad", XPUKernelSet({phi::DataType::FLOAT32})},
       {"meshgrid",
        XPUKernelSet({phi::DataType::FLOAT32,
@@ -1536,6 +1549,8 @@ XPUOpMap& get_kl3_ops() {
                      phi::DataType::FLOAT64,
                      phi::DataType::INT32,
                      phi::DataType::INT64})},
+      {"blha_get_max_len",
+       XPUKernelSet({phi::DataType::INT32, phi::DataType::INT64})},
   };
 
   return s_xpu3_kernels;

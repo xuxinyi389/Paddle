@@ -715,6 +715,14 @@ def shard_index(
     That is, the value `v` is set to the new offset within the range represented by the shard `shard_id`
     if it in the range. Otherwise, we reset it to be `ignore_value`.
 
+    As shown below, a ``[2, 1]`` 2D tensor is updated with the ``shard_index`` operation. Given ``index_num = 20``, ``nshards = 2``, and ``shard_id = 0``, the shard size is ``shard_size = (20 + 2 - 1) // 2 = 10``.
+    For each label element: if its value is in [0, 10), it's adjusted to its offset; e.g., 1 becomes 1 - 0 * 10 = 1. Otherwise, it's set to the default ignore_value of -1, like 16 becoming -1.
+
+    .. image:: https://githubraw.cdn.bcebos.com/PaddlePaddle/docs/develop/docs/images/api_legend/shard_index.png
+       :width: 500
+       :alt: Illustration of Case 2
+       :align: center
+
     Args:
         input (Tensor): Input tensor with data type int64 or int32. It's last dimension must be 1.
         index_num (int): An integer represents the integer above the maximum value of `input`.
@@ -737,6 +745,8 @@ def shard_index(
             >>> print(shard_label.numpy())
             [[-1]
              [ 1]]
+
+
     """
     if in_dynamic_or_pir_mode():
         return _C_ops.shard_index(
@@ -2106,6 +2116,7 @@ def roll(
             x,
             'dtype',
             [
+                'bool',
                 'float16',
                 'float32',
                 'uint16',
@@ -5098,6 +5109,19 @@ def masked_scatter(
     each occurrence of `mask` being True. The shape of `mask` must be broadcastable with the shape of the underlying tensor.
     The `value` should have at least as many elements as the number of ones in `mask`.
 
+    The image illustrates a typical case of the masked_scatter operation.
+
+      1. Tensor  ``value``: Contains the data to be filled into the target tensor. Only the parts where the mask is True will take values from the value tensor, while the rest will be ignored;
+      2. Tensor  ``mask``: Specifies which positions should extract values from the value tensor and update the target tensor. True indicates the corresponding position needs to be updated;
+      3. Tensor  ``origin``: The input tensor, where only the parts satisfying the mask will be replaced, and the rest remains unchanged;
+
+    Result: After the ``masked_scatter`` operation, the parts of the ``origin`` tensor where the ``mask`` is ``True`` are updated with the corresponding values from the ``value`` tensor, while the parts where the ``mask`` is ``False`` remain unchanged, forming the final updated tensor.
+
+    .. image:: https://githubraw.cdn.bcebos.com/PaddlePaddle/docs/develop/docs/images/api_legend/masked_scatter.png
+        :width: 500
+        :alt: legend of masked_scatter API
+        :align: center
+
     Args:
         x (Tensor): An N-D Tensor. The data type is ``float16``, ``float32``, ``float64``, ``int32``,
             ``int64`` or ``bfloat16``.
@@ -5293,6 +5317,19 @@ def atleast_2d(*inputs: Tensor, name: str | None = ...) -> list[Tensor]: ...
 def atleast_2d(*inputs, name=None):
     """
     Convert inputs to tensors and return the view with at least 2-dimension. Two or high-dimensional inputs are preserved.
+
+    The following diagram illustrates the behavior of atleast_2d on different dimensional inputs for the following cases:
+
+        1. A 0-dim tensor input.
+        2. A 0-dim tensor and a 1-dim tensor input.
+        3. A 0-dim tensor and a 3-dim tensor input.
+
+    .. image:: https://githubraw.cdn.bcebos.com/PaddlePaddle/docs/develop/docs/images/api_legend/atleast_2d.png
+        :width: 600
+        :alt: legend of atleast_2d API
+        :align: center
+
+    In each case, the function returns the tensors (or a list of tensors) in views with at least 2 dimensions.
 
     Args:
         inputs (Tensor|list(Tensor)): One or more tensors. The data type is ``float16``, ``float32``, ``float64``, ``int16``, ``int32``, ``int64``, ``int8``, ``uint8``, ``complex64``, ``complex128``, ``bfloat16`` or ``bool``.
@@ -7043,6 +7080,12 @@ def as_strided(
     Note that the output Tensor will share data with origin Tensor and doesn't
     have a Tensor copy in ``dygraph`` mode.
 
+    The following image illustrates an example: transforming an input Tensor with shape [2,4,6] into a Tensor with ``shape [8,6]`` and ``stride [6,1]``.
+
+
+    .. image:: https://githubraw.cdn.bcebos.com/PaddlePaddle/docs/develop/docs/images/api_legend/as_strided.png
+         :alt: Legend
+
     Args:
         x (Tensor): An N-D Tensor. The data type is ``float32``, ``float64``, ``int32``, ``int64`` or ``bool``
         shape (list|tuple): Define the target shape. Each element of it should be integer.
@@ -7272,6 +7315,13 @@ def index_fill(
 ):
     """
     Fill the elements of the input tensor with value by the specific axis and index.
+
+    As shown below, a ``[3, 3]`` 2D tensor is updated via the index_fill operation. With ``axis=0``, ``index=[0, 2]`` and ``value=-1``, the 1st and 3rd row elements become ``-1``. The resulting tensor, still [3, 3], has updated values.
+
+    .. image:: https://githubraw.cdn.bcebos.com/PaddlePaddle/docs/develop/docs/images/api_legend/index_fill.png
+       :width: 500
+       :alt: Illustration of Case 2
+       :align: center
 
     Args:
         x (Tensor) : The Destination Tensor. Supported data types are int32, int64, float16, float32, float64.

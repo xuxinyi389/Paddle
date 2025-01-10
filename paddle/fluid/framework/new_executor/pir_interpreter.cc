@@ -45,7 +45,9 @@
 #ifdef PADDLE_WITH_CINN
 #include "paddle/fluid/framework/new_executor/instruction/cinn_jit_instruction.h"
 #endif
-
+#ifdef PADDLE_WITH_CUSTOM_DEVICE
+#include "paddle/fluid/framework/new_executor/instruction/custom_engine_instruction.h"
+#endif
 #include "paddle/fluid/framework/new_executor/instruction/builtin_combine_instruction.h"
 #include "paddle/fluid/framework/new_executor/instruction/control_flow/assert_instruction.h"
 #include "paddle/fluid/framework/new_executor/instruction/control_flow/has_elements_instruction.h"
@@ -79,7 +81,6 @@
 #include "paddle/fluid/platform/device/gpu/nccl_helper.h"
 #include "paddle/phi/core/distributed/comm_context_manager.h"
 #include "paddle/phi/core/distributed/nccl_comm_context.h"
-COMMON_DECLARE_bool(dynamic_static_unified_comm);
 #endif
 #include "paddle/fluid/framework/new_executor/collect_shape_manager.h"
 #include "paddle/fluid/framework/new_executor/nan_inf_utils.h"
@@ -959,16 +960,25 @@ void PirInterpreter::BuildInstruction() {
       vec_instruction_base_.emplace_back(
           std::make_unique<CustomKernelInstruction>(
               op_idx++, place_, &op, *(value_exe_info_.get())));
+    } else if (paddle::dialect::IsCustomEngineOp(&op)) {
+#ifdef PADDLE_WITH_CUSTOM_DEVICE
+      CREATE_INSTR(CustomEngineInstruction);
+#else
+      PADDLE_THROW(common::errors::PreconditionNotMet(
+          "Program has CustomEngineOp and must compile Paddle use "
+          "-DWITH_CUSTOM_DEVICE=ON"));
+#endif
     } else {
       PADDLE_THROW(common::errors::Unimplemented(
-          "Now only support pd_kernel, onednn_kernel, custom_kernel, trt_op "
+          "Now only support pd_kernel, onednn_kernel, custom_kernel, trt_op, "
+          "custom_engine_op "
           "and cinn dialect."));
     }
   }
 }
 
 std::string PirInterpreter::DebugInstructions() {
-  // log formate: var[101] = pd_op.relu(var[100]) or for inplace op var[100] =
+  // log format: var[101] = pd_op.relu(var[100]) or for inplace op var[100] =
   // pd_op.relu_(var[100])
   std::stringstream ss;
   ss << "{outputs}"
@@ -1184,17 +1194,11 @@ void PirInterpreter::RecordStreamForGC(InstructionBase* instr) {
         op->attribute<::pir::BoolAttribute>("use_calc_stream").data() ==
             false) {
       int ring_id = op->attribute<::pir::Int32Attribute>("ring_id").data();
-      if (FLAGS_dynamic_static_unified_comm) {
-        const auto& comm_context_manager =
-            phi::distributed::CommContextManager::GetInstance();
-        stream = static_cast<phi::distributed::NCCLCommContext*>(
-                     comm_context_manager.Get(std::to_string(ring_id)))
-                     ->GetStream();
-      } else {
-        stream = platform::NCCLCommContext::Instance()
-                     .Get(ring_id, instr->DeviceContext().GetPlace())
-                     ->stream();
-      }
+      const auto& comm_context_manager =
+          phi::distributed::CommContextManager::GetInstance();
+      stream = static_cast<phi::distributed::NCCLCommContext*>(
+                   comm_context_manager.Get(std::to_string(ring_id)))
+                   ->GetStream();
     }
   }
 #endif
