@@ -2578,7 +2578,7 @@ Scope* OperatorWithKernel::PrepareData(
       const auto& var_name = name_vec[i];
       auto* var = in_vars->at(i);
 
-      // Only tensor can be tranfer to another device.
+      // Only tensor can be transfer to another device.
       if (var == nullptr || !VarIsTensor(*var)) {
         continue;
       }
