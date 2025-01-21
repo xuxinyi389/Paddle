@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Callable
 
+import paddle
 from paddle.jit.utils import OrderedSet
 
 from ...profiler import EventGuard, event_register
@@ -886,7 +887,9 @@ class OpcodeExecutorBase:
             getattr, graph=self._graph, tracker=DanglingTracker()
         )(obj, method_name_var)
 
-        if isinstance(method, MethodVariable) and "__getattr__" not in dir(
+        if isinstance(
+            method, MethodVariable
+        ) and not paddle.base.libpaddle.has_custom_getattro(
             method.bound_instance.get_py_type()
         ):
             # bound method or the class override the __getattr__
