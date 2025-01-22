@@ -4435,6 +4435,7 @@
     skip_transform : input
   interfaces : paddle::dialect::InferSymbolicShapeInterface
   traits : paddle::dialect::ForwardOnlyTrait
+  no_need_buffer : input
 
 - op : shape64
   args : (Tensor input)
@@ -4448,6 +4449,7 @@
     skip_transform : input
   interfaces : paddle::dialect::InferSymbolicShapeInterface
   traits : paddle::dialect::ForwardOnlyTrait
+  no_need_buffer : input
 
 - op : shard_index
   args : (Tensor input, int index_num, int nshards, int shard_id, int ignore_value=-1)
