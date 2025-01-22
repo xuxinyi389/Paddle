@@ -660,7 +660,7 @@ def auto_recompute(
     # (TODO: wanghao107): remove it and fix model
     # saved_values = cut_value_nodes | inputs
     saved_values = cut_value_nodes
-    # 2.patition the joint graph by saved values.
+    # 2.partition the joint graph by saved values.
     (
         program_after_recompute,
         fwd_op_end_idx_after_recompute,

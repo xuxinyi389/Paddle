@@ -347,15 +347,15 @@ ShardableAxesSignature CreateSignatureForReshape(
     return result;
   }
 
-  std::vector<std::pair<int, int>> partion_indices =
-      PartionReshapeAxes(in_shape, out_shape);
+  std::vector<std::pair<int, int>> partition_indices =
+      PartitionReshapeAxes(in_shape, out_shape);
 
   std::vector<std::string> output_axes;
-  for (int idx = 1; idx < partion_indices.size(); ++idx) {
-    const auto& in_start = partion_indices[idx - 1].first;
-    const auto& in_end = partion_indices[idx].first;
-    const auto& out_start = partion_indices[idx - 1].second;
-    const auto& out_end = partion_indices[idx].second;
+  for (int idx = 1; idx < partition_indices.size(); ++idx) {
+    const auto& in_start = partition_indices[idx - 1].first;
+    const auto& in_end = partition_indices[idx].first;
+    const auto& out_start = partition_indices[idx - 1].second;
+    const auto& out_end = partition_indices[idx].second;
     if (in_end == in_start + 1 && out_end == out_start + 1) {
       output_axes.emplace_back(input_axes[in_start]);
     } else {
