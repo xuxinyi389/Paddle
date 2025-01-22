@@ -2237,6 +2237,32 @@ class TemporalShiftOpPattern
   }
 };
 
+class FusedBiasDropoutResidualLayerNormOpPattern
+    : public pir::OpRewritePattern<
+          paddle::dialect::FusedBiasDropoutResidualLayerNormOp> {
+ public:
+  using pir::OpRewritePattern<
+      paddle::dialect::FusedBiasDropoutResidualLayerNormOp>::OpRewritePattern;
+
+  bool MatchAndRewrite(paddle::dialect::FusedBiasDropoutResidualLayerNormOp op,
+                       pir::PatternRewriter &rewriter) const override {
+    if (op->HasAttribute(kCanRunTrtAttr) &&
+        op->attribute<pir::BoolAttribute>(kCanRunTrtAttr).data()) {
+      return false;
+    }
+    auto dropout_rate_attr = op->attribute<pir::FloatAttribute>("dropout_rate");
+    float dropout_rate = dropout_rate_attr.data();
+    if (dropout_rate != 0.0f) {
+      VLOG(3) << "preln_residual_bias trt layer can not work with "
+                 "fused_bias_dropout_residual_layer_norm op in which the "
+                 "dropout_rate != 0, stop convert";
+      return false;
+    }
+    op->set_attribute(kCanRunTrtAttr, rewriter.bool_attr(true));
+    return true;
+  }
+};
+
 class InstanceNormOpPattern
     : public pir::OpRewritePattern<paddle::dialect::InstanceNormOp> {
  public:
@@ -2542,6 +2568,8 @@ class TrtOpMarkerPass : public pir::PatternRewritePass {
     ps.Add(std::make_unique<EinsumOpPattern>(context));
     ps.Add(std::make_unique<PNormOpPattern>(context));
     ps.Add(std::make_unique<AffineChannelOpPattern>(context));
+    ps.Add(
+        std::make_unique<FusedBiasDropoutResidualLayerNormOpPattern>(context));
     ps.Add(std::make_unique<YoloBoxOpPattern>(context));
     return ps;
   }
