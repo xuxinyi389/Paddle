@@ -635,7 +635,7 @@ inline void CallThrustScan(const GPUContext& dev_ctx,
 //  unique_key:     20, 25, 30, 33
 //  unique_values:  0, 2, 3, 5
 //  the index of unique_values is: 0, 1, 2, 3
-// 5. update the out_index by unique_key, uniqe_value and the index of
+// 5. update the out_index by unique_key, unique_value and the index of
 // unique_value:
 //  the new out_index: 0, 2, 3, 2, 3, 0, 1
 template <typename T, typename Context, typename IntT = int>

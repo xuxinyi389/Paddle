@@ -75,8 +75,8 @@ class TestAutoParallelGraph(unittest.TestCase):
         self.assertIsNotNone(str)
 
         self.assertRaises(TypeError, 6 in graph)
-        self.assertRaises(TypeError, "unkown_attr" in graph.nodes[1])
-        self.assertRaises(TypeError, "unkown_attr" in graph[1][2])
+        self.assertRaises(TypeError, "unknown_attr" in graph.nodes[1])
+        self.assertRaises(TypeError, "unknown_attr" in graph[1][2])
         self.assertRaises(ValueError, graph.add_node, None)
         self.assertRaises(ValueError, graph.add_edge, 3, None)
         self.assertRaises(ValueError, graph.add_edge, None, 3)
