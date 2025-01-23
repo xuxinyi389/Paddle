@@ -792,9 +792,9 @@ void Reducer::MarkVarReady(const size_t var_index, const bool is_used_var) {
             "The sparse parameter[%d][%s] should have gradient. "
             "Currently, DataParallel does not support sparse "
             "parameters without generating gradients during training. "
-            "For example, if is_sparese=True is used in Embedding, "
+            "For example, if is_sparse=True is used in Embedding, "
             "the current step of this parameter cannot generate gradient "
-            "because of stop_gradient/detatch, where error will occur.",
+            "because of stop_gradient/detach, where error will occur.",
             var_index,
             vars_[var_index]->Name()));
     auto var_base = vars_[var_index]->GradVarBase();

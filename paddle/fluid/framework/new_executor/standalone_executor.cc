@@ -178,10 +178,10 @@ StandaloneExecutor::StandaloneExecutor(const phi::Place& place,
                           true,
                           common::errors::InvalidArgument(
                               "When using pipeline strategy in auto "
-                              "prarallelism with new executor, "
+                              "parallelism with new executor, "
                               "the backward subprogram must be built in real "
                               "static build mode, but it can not "
-                              "be staticly built in this case. You can "
+                              "be statically built in this case. You can "
                               "enable 'GLOG_v=1' to obtain log information."));
       }
     }
