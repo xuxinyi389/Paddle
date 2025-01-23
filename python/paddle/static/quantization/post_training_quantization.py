@@ -1653,7 +1653,7 @@ class WeightQuantization:
 
     def convert_weight_to_fp16(self, save_model_dir):
         """
-        Convert all presistable vars from fp32 to fp16.
+        Convert all persistable vars from fp32 to fp16.
         Note that, this api only changes the data type of variables in
         __params__ file, and the __model__ file remains unchanged.
 
