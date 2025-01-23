@@ -419,7 +419,7 @@ class FunctionGraph:
         ret_items = [
             ret_item
             for ret_var in ret_vars
-            for ret_item in ret_var.flatten_items()
+            for ret_item in ret_var.flatten_inner_vars()
         ]
 
         symbolic_outputs = self._find_tensor_outputs(ret_items)
@@ -658,7 +658,7 @@ class FunctionGraph:
                     and e.name in bound_arguments.arguments
                 ):
                     original_var = bound_arguments.arguments[e.name]
-                    flatten_vars = original_var.flatten_items()
+                    flatten_vars = original_var.flatten_inner_vars()
                     if not any(
                         isinstance(arg, SymbolicVariable)
                         for arg in flatten_vars
@@ -679,7 +679,7 @@ class FunctionGraph:
                 else:
                     flatten_vars = reduce(
                         lambda x, y: (
-                            x + y.flatten_items()
+                            x + y.flatten_inner_vars()
                             if isinstance(y, VariableBase)
                             else x
                         ),
@@ -917,7 +917,7 @@ class FunctionGraph:
         # Find Tensor Variables from side effects Variables.
         for side_effect_var in self.side_effects.proxy_variables:
             if isinstance(side_effect_var, (ListVariable, DictVariable)):
-                for var in side_effect_var.flatten_items():
+                for var in side_effect_var.flatten_inner_vars():
                     if (
                         is_graph_output(var)
                         and side_effect_var.tracker.is_traceable()
@@ -933,12 +933,12 @@ class FunctionGraph:
                     continue
                 for record in proxy_records:
                     if isinstance(record, (MutationSet, MutationNew)):
-                        for var in record.value.flatten_items():
+                        for var in record.value.flatten_inner_vars():
                             if is_graph_output(var):
                                 output_tensors.add(var)
         # Find Tensor in print_stmts
         for print_stmt in self._print_variables:
-            for var in print_stmt.flatten_items():
+            for var in print_stmt.flatten_inner_vars():
                 if is_graph_output(var):
                     output_tensors.add(var)
 

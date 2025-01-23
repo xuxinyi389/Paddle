@@ -16,9 +16,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from paddle.jit.sot.opcode_translator.executor.variables.base import (
+    VariableBase,
+)
+
 from ....utils import BreakGraphError, FallbackError
 from ..tracker import ConstTracker, DummyTracker
-from .base import VariableBase, VariableFactory
+from .base import VariableFactory
 from .basic import ConstantVariable
 from .container import ContainerVariable, TupleVariable
 
@@ -50,10 +54,19 @@ class IterVariable(VariableBase):
     def get_iter(self):
         return self
 
-    def get_items(self):
-        if isinstance(self.hold, (ContainerVariable, IterVariable)):
-            return self.hold.get_items()
-        return [self.hold]
+    def flatten_inner_vars(self) -> list[VariableBase]:
+        return [
+            var
+            for item_list in (
+                self.hold.get_wrapped_items()
+                if isinstance(self.hold, (ContainerVariable, IterVariable))
+                else [self.hold]
+            )
+            for item in (
+                item_list if isinstance(item_list, list) else [item_list]
+            )
+            for var in item.flatten_inner_vars()
+        ]
 
 
 class SequenceIterVariable(IterVariable):
@@ -161,15 +174,6 @@ class ZipVariable(SequenceIterVariable):
 
     def __init__(self, iters, graph, tracker):
         super().__init__(iters, graph, tracker)
-
-    def get_items(self):
-        items = []
-        for hold in self.hold:
-            if isinstance(hold, (ContainerVariable, IterVariable)):
-                items.extend(hold.get_items())
-            else:
-                items.append(hold)
-        return items
 
     def next(self):
         # can not use <listcomp> here, because it will raise a RuntimeError("StopIteration")

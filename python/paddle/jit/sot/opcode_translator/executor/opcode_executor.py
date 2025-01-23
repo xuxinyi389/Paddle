@@ -1077,7 +1077,8 @@ class OpcodeExecutorBase:
         assert map_size + 1 <= len(
             self.stack
         ), f"OpExecutor want BUILD_CONST_KEY_MAP with size {map_size} + 1, but current stack do not have enough elems."
-        keys = self.stack.pop().get_items()
+        keys = self.stack.pop().get_wrapped_items()
+        keys = list(keys) if isinstance(keys, tuple) else keys
         assert len(keys) == map_size
         values = self.stack.pop_n(map_size)
         self.stack.push(self.build_map(keys, values))
@@ -2483,7 +2484,7 @@ class OpcodeExecutor(OpcodeExecutorBase):
         extra_store_vars = (
             [
                 item
-                for item in iterator.flatten_items()
+                for item in iterator.flatten_inner_vars()
                 if isinstance(item, (TensorVariable, SymbolicVariable))
             ]
             if isinstance(iterator, IterVariable)
